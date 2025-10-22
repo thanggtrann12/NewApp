@@ -8,6 +8,8 @@ with open("config/config.json", "r") as f:
     CONFIG = json.load(f)
 
 # ================= Popup chọn project =================
+
+
 class ProjectSelectionWindow(QtWidgets.QDialog):
     def __init__(self):
         super().__init__()
@@ -23,7 +25,8 @@ class ProjectSelectionWindow(QtWidgets.QDialog):
         for proj in CONFIG["projects"]:
             btn = QtWidgets.QPushButton(proj["label"])
             btn.setFixedSize(200, 40)
-            btn.clicked.connect(lambda checked, name=proj["name"]: self.on_project_clicked(name))
+            btn.clicked.connect(
+                lambda checked, name=proj["name"]: self.on_project_clicked(name))
             self.button_layout.addWidget(btn)
             self.project_buttons.append(btn)
 
@@ -34,6 +37,8 @@ class ProjectSelectionWindow(QtWidgets.QDialog):
         self.accept()
 
 # ================= MainApp =================
+
+
 class MainApp(QtWidgets.QMainWindow):
     def __init__(self, project_name):
         super().__init__()
@@ -41,13 +46,15 @@ class MainApp(QtWidgets.QMainWindow):
         self.setWindowTitle(f"{project_name} Control App")
 
         # Load project config
-        self.project_cfg = next((p for p in CONFIG["projects"] if p["name"] == project_name), None)
+        self.project_cfg = next(
+            (p for p in CONFIG["projects"] if p["name"] == project_name), None)
         if self.project_cfg is None:
             return
 
         # Dynamic import module
         func_file = self.project_cfg.get("function_file")
-        spec = importlib.util.spec_from_file_location("project_module", func_file)
+        spec = importlib.util.spec_from_file_location(
+            "project_module", func_file)
         self.project_module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(self.project_module)
 
@@ -61,16 +68,29 @@ class MainApp(QtWidgets.QMainWindow):
 
             # Connect signal
             checkbox.stateChanged.connect(
-                lambda state, cb=checkbox, func_name=usb["execute"]: self.on_usb_checkbox_changed(cb, state, func_name)
+                lambda state, cb=checkbox, func_name=usb["execute"]: self.on_usb_checkbox_changed(
+                    cb, state, func_name)
             )
 
         # ------------------- SW flashing layout -------------------
         for sw in self.project_cfg.get("sw_flashing_layout", []):
             btn = QtWidgets.QPushButton(sw["button"])
-            btn.clicked.connect(lambda _, b=btn, func_name=sw["execute"]: self.on_sw_button_clicked(func_name, b))
+            btn.clicked.connect(
+                lambda _, b=btn, func_name=sw["execute"]: self.on_sw_button_clicked(func_name, b))
             self.sw_flashing_layout.addWidget(btn)
+        # ------------------- Reload project button -------------------
+        self.prj_reload = self.findChild(QtWidgets.QPushButton, "prj_reload")
+        self.prj_reload.clicked.connect(self.reload_project)
 
+    def reload_project(self):
+        dlg = ProjectSelectionWindow()
+        if dlg.exec_() == QtWidgets.QDialog.Accepted and dlg.selected_project:
+            # Close current window and open new
+            self.close()
+            self.new_window = MainApp(dlg.selected_project)
+            self.new_window.show()
     # ------------------- USB checkbox handler -------------------
+
     def on_usb_checkbox_changed(self, checkbox, state, func_name):
         if state == QtCore.Qt.Checked:
             # Uncheck all other checkboxes in this layout
@@ -98,6 +118,7 @@ class MainApp(QtWidgets.QMainWindow):
     def log(self, msg):
         self.log_area.append(msg)
         self.log_area.ensureCursorVisible()
+
 
 # =================== Main ===================
 if __name__ == "__main__":
