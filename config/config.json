@@ -1,0 +1,36 @@
+{
+"projects": [
+{
+    "name": "B1",
+    "label": "B1 Project",
+    "function_file" : "projects\\B1_functions.py",
+    "usb_layout":
+    [
+        {"checkbox": "normal_usb", "text": "Normal USB", "execute": "connect_normal_usb"},
+        {"checkbox": "usb_eth", "text": "USB to ETH", "execute": "connect_usb_eth"}
+    ],
+    "sw_flashing_layout":
+    [
+        {"button": "Flash MainSW", "execute": "flash_main_sw"},
+        {"button": "CDT - UFS", "execute": "flash_cdt_ufs"},
+        {"button": "Flash AutoSar", "execute": "flash_autosar"}
+    ]
+},
+{
+    "name": "C2.1",
+    "label": "C2.1 Project",
+    "function_file" : "projects\\C21_functions.py",
+    "usb_layout":
+    [
+        {"checkbox": "normal_usb", "text": "Normal USB", "execute": "connect_normal_usb"},
+        {"checkbox": "usb_eth", "text": "USB to ETH", "execute": "connect_usb_eth"}
+    ],
+    "sw_flashing_layout":
+    [
+        {"button": "Flash MainSW", "execute": "flash_main_sw"},
+        {"button": "CDT - UFS", "execute": "flash_cdt_ufs"},
+        {"button": "Flash AutoSar", "execute": "flash_autosar"}
+    ]
+}
+]
+}

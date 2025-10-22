@@ -1,0 +1,26 @@
+{
+  "last_project": "B1",
+  "C2.1": {
+    "comport": "",
+    "usb_checkboxes": {
+      "normal_usb": true,
+      "usb_eth": false
+    },
+    "voltage_input": "",
+    "usb": {
+      "normal_usb": false
+    }
+  },
+  "B1": {
+    "comport": "",
+    "usb_checkboxes": {
+      "normal_usb": false,
+      "usb_eth": false
+    },
+    "voltage_input": "",
+    "usb": {
+      "normal_usb": false,
+      "usb_eth": false
+    }
+  }
+}
