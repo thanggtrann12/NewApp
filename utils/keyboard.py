@@ -1,10 +1,10 @@
 import sys
 from PyQt5.QtWidgets import (
-    QApplication, QWidget, QPushButton, QGridLayout, QLineEdit, QVBoxLayout
+    QApplication, QWidget, QPushButton, QGridLayout, QLineEdit
 )
 from PyQt5.QtCore import Qt, QPoint, QEvent
 from PyQt5.QtGui import QFont
-from dialog import ExampleDialog  # giữ nguyên như bạn đang có
+from PyQt5.QtWidgets import QApplication
 
 COL_W = 55  # 1 ô lưới = 55px
 
@@ -14,7 +14,7 @@ class AndroidKeyboard(QWidget):
         "1": "!", "2": "@", "3": "#", "4": "$", "5": "%",
         "6": "^", "7": "&", "8": "*", "9": "(", "0": ")",
         "-": "_", "=": "+"
-        # Có thể mở rộng thêm nếu bạn bổ sung các phím khác:
+        # Có thể mở rộng thêm:
         # ";": ":", "'": '"', ",": "<", ".": ">", "/": "?",
         # "[": "{", "]": "}", "\\": "|", "`": "~"
     }
@@ -22,20 +22,22 @@ class AndroidKeyboard(QWidget):
     def __init__(self):
         super().__init__()
 
-        self.setWindowFlags(Qt.Popup | Qt.WindowStaysOnTopHint)
-        self.setFocusPolicy(Qt.NoFocus)
+        # Popup + luôn trên cùng; KHÔNG cướp focus
+        self.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        self.setAttribute(Qt.WA_ShowWithoutActivating, True)
+
 
         # Trạng thái
         self.shift = False          # Shift tạm (chỉ ở ABC)
         self.capslock = False       # Caps Lock toggle (chỉ ở ABC)
         self.target = None
         self.mode = "alpha"         # "alpha" (ABC) | "symbol" (?123)
+        self._parent_window = None  # lưu window đang làm parent tạm thời
 
         # Layout lưới
         self.grid = QGridLayout()
         self.grid.setHorizontalSpacing(5)
         self.grid.setVerticalSpacing(5)
-        # self.grid.setSizeConstraint(QGridLayout.SetFixedSize)
         self.setLayout(self.grid)
 
         self.font = QFont("Arial", 12, QFont.Bold)
@@ -111,14 +113,15 @@ class AndroidKeyboard(QWidget):
 
     def add_key(self, text, row, col, w=COL_W, colspan=1, on_click=None, style="", value=None):
         """
-        text  : label hiển thị trên nút (sẽ escape '&' -> '&&' cho Qt)
-        value : giá trị chèn vào target (mặc định = text nguyên bản, KHÔNG escape)
+        text  : label hiển thị trên nút (ESCAPE '&' -> '&&' để Qt hiển thị đúng ký tự &).
+        value : giá trị chèn vào target (mặc định = text nguyên bản, KHÔNG escape).
         """
         btn = QPushButton()
-        display_text = text.replace("&", "&&")  # ESCAPE để hiện đúng ký tự & trên label
+
+        # Qt dùng '&' làm mnemonic → để HIỂN THỊ '&' phải setText bằng '&&'
+        display_text = text.replace("&", "&&")
         btn.setText(display_text)
 
-        # Kích thước xấp xỉ theo số cột + khoảng đệm giữa cột
         btn.setFixedSize(w * colspan + 5 * (colspan - 1), COL_W)
         btn.setFont(self.font)
         if style:
@@ -126,16 +129,13 @@ class AndroidKeyboard(QWidget):
         btn.setFocusPolicy(Qt.NoFocus)
 
         if on_click:
-            # Nếu có callback riêng (Backspace, Shift, Caps...), ưu tiên dùng callback
             btn.clicked.connect(on_click)
         else:
-            # Mặc định: chèn 'value' (nếu None thì dùng 'text' nguyên bản)
             payload = text if value is None else value
             btn.clicked.connect(lambda _, k=payload: self.press(k))
 
         self.grid.addWidget(btn, row, col, 1, colspan)
         return btn
-
 
     def build_layout(self):
         """Xây layout theo self.mode"""
@@ -146,18 +146,9 @@ class AndroidKeyboard(QWidget):
         else:
             self.build_symbol_layout()
 
-        # Cập nhật hiển thị trạng thái
         self.updateShiftVisual()
 
     def build_alpha_layout(self):
-        """
-        Layout ABC:
-        - H1: 1 2 3 4 5 6 7 8 9 0 - =
-        - H2: Q W E R T Y U I O P  [⌫ ở cột 10..11]
-        - H3: ⇧ A S D F G H J K L [ENTER cột 10..11]
-        - H4: SHIFT Z X C V B N M
-        - H5: ?123 (cột 0), SPACE (cột 1..10)
-        """
         # --- HÀNG SỐ (row=0) ---
         row0 = 0
         top_row = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="]
@@ -213,16 +204,9 @@ class AndroidKeyboard(QWidget):
 
     def build_symbol_layout(self):
         """
-        Layout ?123 (kí tự/số) — KHÔNG có SHIFT, KHÔNG có Caps:
-        - H1: 1 2 3 4 5 6 7 8 9 0 - =
-        - H2: @ # $ _ & - + ( ) /   [⌫ cột 10..11]
-        - H3: (10 phím) * " ' : ; ! ? , .  (sẽ thêm placeholder rỗng ở cột 0)
-              [ENTER cột 10..11]
-        - H4: ~ ` [ ] { } \ < > |   (10 phím, lấp đầy 0..9)
-        - H5: ABC (cột 0), SPACE (cột 1..10)
+        Layout ?123 (kí tự/số) — KHÔNG có SHIFT, KHÔNG có Caps
         """
-        # Khi sang symbol: tắt shift tạm để tránh ảnh hưởng
-        self.shift = False
+        self.shift = False  # tắt shift tạm
 
         # --- HÀNG SỐ (row=0) ---
         row0 = 0
@@ -239,13 +223,11 @@ class AndroidKeyboard(QWidget):
 
         # --- HÀNG SYMBOL 2 (row=2) + ENTER ---
         row2 = 2
-        # Thêm placeholder rỗng ở cột 0 để bố cục thẳng với ABC (nút Caps)
-        ph = self.add_key("", row2, 0, on_click=None)
+        ph = self.add_key("", row2, 0, on_click=None)  # placeholder canh cột
         ph.setEnabled(False)
 
         sym_row2 = ["*", '"', "'", ":", ";", "!", "?", ",", "."]
         for i, key in enumerate(sym_row2):
-            # bắt đầu từ cột 1 để chừa placeholder
             self.add_key(key, row2, 1 + i, on_click=lambda _, k=key: self.press(k))
 
         enter_btn = self.add_key("ENTER", row2, 10, colspan=2, on_click=lambda: self.press("\n"))
@@ -253,7 +235,7 @@ class AndroidKeyboard(QWidget):
         enter_btn.setToolTip("Enter")
         enter_btn.style().unpolish(enter_btn); enter_btn.style().polish(enter_btn)
 
-        # --- HÀNG SYMBOL 3 (row=3) — KHÔNG có SHIFT ---
+        # --- HÀNG SYMBOL 3 (row=3) ---
         row3 = 3
         sym_row3 = ["~", "`", "[", "]", "{", "}", "\\", "<", ">", "|"]  # 10 phím lấp 0..9
         for i, k in enumerate(sym_row3):
@@ -273,15 +255,7 @@ class AndroidKeyboard(QWidget):
     # Input logic
     # =======================
     def press(self, key: str):
-        """
-        - Ở chế độ ABC:
-            + Nếu là số/ký tự có trong SHIFT_MAP và shift đang bật → ký tự Shift (vd 2 -> @).
-            + Nếu là chữ cái → XOR giữa capslock và shift để xác định HOA/thường.
-        - Ở chế độ ?123: chèn đúng ký tự hiển thị (shift/caps không có tác dụng).
-        - Shift là tạm thời: sau khi chèn 1 ký tự (dài 1), Shift tự OFF (chỉ áp dụng ABC).
-        """
         out = key
-
         if self.mode == "alpha":
             if len(key) == 1:
                 if key in self.SHIFT_MAP and self.shift:
@@ -293,8 +267,7 @@ class AndroidKeyboard(QWidget):
                 else:
                     out = key
         else:
-            # symbol mode: chèn nguyên xi
-            out = key
+            out = key  # symbol mode
 
         if self.target:
             # QLineEdit không xuống dòng
@@ -303,13 +276,17 @@ class AndroidKeyboard(QWidget):
                     self.target.returnPressed.emit()
                 except Exception:
                     pass
-                # tắt shift tạm nếu đang bật
                 if self.shift:
                     self.shift = False
                     self.updateShiftVisual()
                 return
 
-            self.target.insert(out)
+            # Chèn ra editor (QLineEdit/QTextEdit/QPlainTextEdit)
+            try:
+                self.target.insert(out)
+            except Exception:
+                if hasattr(self.target, "insertPlainText"):
+                    self.target.insertPlainText(out)
 
             # Tắt shift tạm sau khi gõ 1 ký tự ở chế độ ABC
             if self.mode == "alpha" and self.shift and len(out) == 1:
@@ -317,109 +294,190 @@ class AndroidKeyboard(QWidget):
                 self.updateShiftVisual()
 
     def toggleShift(self):
-        """Shift tạm (chỉ hoạt động ở chế độ ABC)."""
         if self.mode != "alpha":
             return
         self.shift = not self.shift
         self.updateShiftVisual()
 
     def caplock(self):
-        """Caps Lock toggle on/off (chỉ có ý nghĩa ở chế độ ABC)."""
         if self.mode != "alpha":
             return
         self.capslock = not self.capslock
         if self.capslock:
-            # Bật capslock thì tắt shift tạm nếu đang bật
             self.shift = False
         self.updateShiftVisual()
 
     def toggleMode(self):
-        """Chuyển giữa ABC <-> ?123."""
-        # Khi đổi mode, tắt shift tạm để không ảnh hưởng
         self.shift = False
-        # Không đụng tới capslock (để quay lại ABC còn hiệu lực)
         self.mode = "symbol" if self.mode == "alpha" else "alpha"
         self.build_layout()
 
     def updateShiftVisual(self):
-        """Cập nhật hiển thị cho nút Caps (⇧/⇪) và Shift (chỉ khi tồn tại)."""
-        # Nút Caps (chỉ ở ABC)
         if hasattr(self, "cap_btn") and self.cap_btn:
-            cap_text  = "⇪" if self.capslock else "⇧"
-            cap_state = "lock" if self.capslock else "off"
-            self.cap_btn.setText(cap_text)
-            self.cap_btn.setProperty("shiftState", cap_state)
-            self.cap_btn.style().unpolish(self.cap_btn); self.cap_btn.style().polish(self.cap_btn)
-            self.cap_btn.update()
+            new_state = "lock" if self.capslock else "off"
+            if self.cap_btn.property("shiftState") != new_state:
+                self.cap_btn.setText("⇪" if self.capslock else "⇧")
+                self.cap_btn.setProperty("shiftState", new_state)
+                self.cap_btn.style().unpolish(self.cap_btn)
+                self.cap_btn.style().polish(self.cap_btn)
 
-        # Nút Shift (chỉ ở ABC)
         if hasattr(self, "shift_btn") and self.shift_btn:
-            shift_state = "on" if (self.mode == "alpha" and self.shift) else "off"
-            self.shift_btn.setProperty("shiftState", shift_state)
-            self.shift_btn.setEnabled(self.mode == "alpha")
-            self.shift_btn.style().unpolish(self.shift_btn); self.shift_btn.style().polish(self.shift_btn)
-            self.shift_btn.update()
+            new_state = "on" if (self.mode == "alpha" and self.shift) else "off"
+            if self.shift_btn.property("shiftState") != new_state:
+                self.shift_btn.setProperty("shiftState", new_state)
+                self.shift_btn.setEnabled(self.mode == "alpha")
+                self.shift_btn.style().unpolish(self.shift_btn)
+                self.shift_btn.style().polish(self.shift_btn)
 
-        # Nút chế độ (?123/ABC)
         if hasattr(self, "mode_btn") and self.mode_btn:
             self.mode_btn.setText("ABC" if self.mode == "symbol" else "?123")
             self.mode_btn.setToolTip("Quay về bàn phím chữ" if self.mode == "symbol" else "Chuyển sang số/ký tự")
 
+
     def backspace(self):
         if self.target:
-            pos = self.target.cursorPosition()
-            if pos > 0:
-                t = self.target.text()
-                self.target.setText(t[:pos-1] + t[pos:])
-                self.target.setCursorPosition(pos-1)
+            # QLineEdit
+            try:
+                pos = self.target.cursorPosition()
+                if pos > 0:
+                    t = self.target.text()
+                    self.target.setText(t[:pos-1] + t[pos:])
+                    self.target.setCursorPosition(pos-1)
+                return
+            except Exception:
+                pass
+            # QTextEdit / QPlainTextEdit
+            try:
+                cursor = self.target.textCursor()
+                cursor.deletePreviousChar()
+                self.target.setTextCursor(cursor)
+            except Exception:
+                pass
+
+    # ---------- chống bị xóa khi dialog đóng ----------
+    def _on_parent_destroyed(self, *args):
+        """
+        Khi window cha (QDialog) sắp bị hủy, tách keyboard ra khỏi parent để
+        không bị xóa theo. Sau đó ẩn luôn.
+        """
+        try:
+            self.setParent(None)  # detach => không bị hủy theo cha
+            self._parent_window = None
+            self.hide()
+        except Exception:
+            pass
 
     def popupAt(self, widget):
-        """Hiện bàn phím ngay dưới widget target (QLineEdit/QTextEdit, ...)"""
+        """Hiện bàn phím ngay dưới widget target (QLineEdit/QTextEdit, ...),
+        hoạt động cả trong QDialog modal và chống tràn 2 chiều.
+        """
         self.target = widget
-        pos = widget.mapToGlobal(QPoint(0, widget.height() + 4))
-        self.move(pos)
+
+        # Reparent thành child của top-level window chứa target để không bị app-modal block
+        try:
+            new_parent = widget.window()
+            self.setParent(new_parent)
+            # Dùng Tool để vẽ ổn định trong dialog, không cướp focus
+            self.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+            self.setAttribute(Qt.WA_ShowWithoutActivating, True)
+
+            # Ngắt-kết nối cũ (nếu có) rồi kết nối destroyed -> tách parent trước khi cha bị hủy
+            if hasattr(self, "_parent_window") and self._parent_window is not None and self._parent_window is not new_parent:
+                try:
+                    self._parent_window.destroyed.disconnect(self._on_parent_destroyed)
+                except Exception:
+                    pass
+            new_parent.destroyed.connect(self._on_parent_destroyed)
+            self._parent_window = new_parent
+        except Exception:
+            # fallback: không parent
+            self.setParent(None)
+            self.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+
+        # Tự ẩn khi target bị destroy
+        try:
+            widget.destroyed.connect(lambda *_: self.hide())
+        except Exception:
+            pass
+
+        # Đảm bảo có size trước khi tính
+        self.adjustSize()
+        kb_w = self.sizeHint().width()
+        win_geo = widget.window().frameGeometry()
+        # Geometry GLOBAL của cửa sổ cha
+        win_geo = widget.window().frameGeometry()
+        x = win_geo.x() + (win_geo.width() - kb_w) // 2
+        y = win_geo.y() + (win_geo.height() * 2) // 3
+        self.move(x, y)
+
+
+        # (Tùy chọn) style nền để dễ nhìn (bạn có thể bỏ nếu không cần)
+        self.setObjectName("KeyboardRoot")
+        # Style nền
+        self.setStyleSheet("""
+            #KeyboardRoot {
+                background-color: rgba(30,30,30,0.92);
+                border: 1px solid #555;
+                border-radius: 10px;
+            }
+        """)
         self.show()
+        try:
+            self.raise_()
+        except Exception:
+            pass
 
+    def _on_parent_destroyed(self, *args):
+        try:
+            self.setParent(None)  # tách để không bị xóa theo cha
+            self.hide()
+            self._parent_window = None
+        except Exception:
+            pass
+    def showEvent(self, e):
+        """Khi bàn phím hiển thị, lắp event filter toàn cục để bắt click outside."""
+        super().showEvent(e)
+        try:
+            QApplication.instance().installEventFilter(self)
+        except Exception:
+            pass
 
-# ==== Demo MainWindow ====
-class MainWindow(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("Main Window")
-
-        layout = QVBoxLayout()
-
-        self.line1 = QLineEdit()
-        self.line2 = QLineEdit()
-        layout.addWidget(self.line1)
-        layout.addWidget(self.line2)
-
-        btn = QPushButton("Open Dialog")
-        btn.clicked.connect(self.openDialog)
-        layout.addWidget(btn)
-
-        self.setLayout(layout)
-
-        # Tạo 1 bàn phím duy nhất (chia sẻ cho mọi ô nhập)
-        self.keyboard = AndroidKeyboard()
-
-        # Bắt click chuột lên QLineEdit để popup bàn phím
-        self.line1.installEventFilter(self)
-        self.line2.installEventFilter(self)
+    def hideEvent(self, e):
+        """Khi bàn phím ẩn, gỡ event filter để tránh tiêu tốn sự kiện không cần thiết."""
+        super().hideEvent(e)
+        try:
+            QApplication.instance().removeEventFilter(self)
+        except Exception:
+            pass
 
     def eventFilter(self, obj, event):
-        if event.type() == QEvent.MouseButtonPress:
-            if isinstance(obj, QLineEdit):
-                self.keyboard.popupAt(obj)
-        return super().eventFilter(obj, event)
+        """
+        Ẩn bàn phím khi click ra ngoài:
+        - Nếu click nằm ngoài self (không phải chính bàn phím hoặc con của nó) -> hide().
+        - Vẫn cho sự kiện tiếp tục (return False) để app xử lý bình thường.
+        """
+        et = event.type()
+        if et in (QEvent.MouseButtonPress, QEvent.MouseButtonDblClick):
+            try:
+                # Vị trí toàn cục của cú click
+                gp = event.globalPos()
+                # Widget ở vị trí click (có thể None nếu ngoài khu vực app)
+                w = QApplication.widgetAt(gp)
 
-    def openDialog(self):
-        dlg = ExampleDialog(self.keyboard)  # giữ API bạn đang dùng
-        dlg.exec_()
+                # Nếu click vào chính bàn phím hoặc con của nó -> KHÔNG ẩn
+                if w is not None and (w is self or self.isAncestorOf(w)):
+                    return False
 
+                # Ngược lại: click outside -> ẩn
+                if self.isVisible():
+                    self.hide()
+            except Exception:
+                # Nếu có lỗi, vẫn cứ để sự kiện đi tiếp
+                pass
 
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    win = MainWindow()
-    win.show()
-    sys.exit(app.exec_())
+        return False  # không chặn sự kiện gốc
+    def move(self, x, y):
+        if self.pos().x() == x and self.pos().y() == y:
+            return  # không gọi super nếu vị trí giống cũ
+        print("move:", x, y)
+        super().move(x, y)
