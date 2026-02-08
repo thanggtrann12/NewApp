@@ -32,14 +32,19 @@ QWidget {
   color: #CCCCCC;
 }
 
-/* Nút đóng trên card */
 #CloseButton {
-  background: transparent;
-  border: none;
-  color: #DD6B6B;
-  font-size: 14pt;
+  background-color: #4A2A2A;
+  border: 1px solid #7A3A3A;
+  border-radius: 18px;
+  color: #FF6B6B;
+  font-size: 18pt;
+  font-weight: 700;
 }
-#CloseButton:hover { color: #FF7B7B; }
+
+#CloseButton:hover {
+  background-color: #5A2A2A;
+  color: #FF8A8A;
+}
 
 /* Nút DETAIL (đậm, full width) */
 #DetailButton {
@@ -80,3 +85,91 @@ QLineEdit:focus, QSpinBox:focus {
   border-color: #6A9AE8;
 }
 
+QLabel#PumpLabel {
+    font-size: 12px;
+    color: #666;
+}
+
+QLabel#CropLabel {
+    font-size: 12px;
+    font-weight: 600;
+    color: #2e7d32;
+}
+
+QLabel#PumpEmpty {
+    color: #999;
+    font-style: italic;
+}
+QFrame#Card QLabel {
+    background: transparent;
+}
+QLabel {
+    background-color: transparent;
+}
+#PumpArea {
+  background-color: transparent;
+}
+#PumpButton {
+  background: transparent;
+  border: none;
+  color: #AAA;
+  text-align: left;
+  padding: 4px 6px;
+  font-size: 12pt;
+}
+
+#PumpButton:hover {
+  color: #DDD;
+}
+
+#PumpButton:checked {
+  background-color: rgba(255, 180, 0, 0.18);
+  color: #FFB000;
+  border-radius: 6px;
+}
+
+#CropLabel {
+  font-weight: 600;
+  color: #2e7d32;
+}
+
+#PumpButton[mode="MANUAL"] {
+  color: #FFB000;
+  font-weight: 600;
+}
+
+#PumpButton[mode="AUTO"] {
+  color: #CCCCCC;
+}
+
+#PumpButton[autoType="TIMER"] {
+  color: #4FC3F7;
+}
+
+#PumpOn {
+  background-color: #2e7d32;
+  color: white;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 4px 10px;
+}
+
+#PumpOff {
+  background-color: #b71c1c;
+  color: white;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 4px 10px;
+}
+QLabel[state="RUNNING"] {
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+QLabel[state="OFF"] {
+  color: #999;
+}
+
+QLabel {
+  font-size: 11pt;
+} 

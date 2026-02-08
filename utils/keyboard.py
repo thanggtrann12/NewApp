@@ -23,8 +23,8 @@ class AndroidKeyboard(QWidget):
         super().__init__()
 
         # Popup + luôn trên cùng; KHÔNG cướp focus
-        self.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-        self.setAttribute(Qt.WA_ShowWithoutActivating, True)
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        self.setAttribute(Qt.WA_ShowWithoutActivating, False)
 
 
         # Trạng thái
@@ -378,7 +378,7 @@ class AndroidKeyboard(QWidget):
             new_parent = widget.window()
             self.setParent(new_parent)
             # Dùng Tool để vẽ ổn định trong dialog, không cướp focus
-            self.setWindowFlags(Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+            self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
             self.setAttribute(Qt.WA_ShowWithoutActivating, True)
 
             # Ngắt-kết nối cũ (nếu có) rồi kết nối destroyed -> tách parent trước khi cha bị hủy
@@ -402,14 +402,7 @@ class AndroidKeyboard(QWidget):
 
         # Đảm bảo có size trước khi tính
         self.adjustSize()
-        kb_w = self.sizeHint().width()
-        win_geo = widget.window().frameGeometry()
-        # Geometry GLOBAL của cửa sổ cha
-        win_geo = widget.window().frameGeometry()
-        x = win_geo.x() + (win_geo.width() - kb_w) // 2
-        y = win_geo.y() + (win_geo.height() * 2) // 3
-        self.move(x, y)
-
+        self.move(20, 200)
 
         # (Tùy chọn) style nền để dễ nhìn (bạn có thể bỏ nếu không cần)
         self.setObjectName("KeyboardRoot")
@@ -443,41 +436,38 @@ class AndroidKeyboard(QWidget):
             pass
 
     def hideEvent(self, e):
-        """Khi bàn phím ẩn, gỡ event filter để tránh tiêu tốn sự kiện không cần thiết."""
         super().hideEvent(e)
         try:
-            QApplication.instance().removeEventFilter(self)
+            if hasattr(self, "_overlay") and self._overlay:
+                self._overlay.hide()
+                self._overlay.deleteLater()
+                self._overlay = None
         except Exception:
             pass
 
-    def eventFilter(self, obj, event):
-        """
-        Ẩn bàn phím khi click ra ngoài:
-        - Nếu click nằm ngoài self (không phải chính bàn phím hoặc con của nó) -> hide().
-        - Vẫn cho sự kiện tiếp tục (return False) để app xử lý bình thường.
-        """
-        et = event.type()
-        if et in (QEvent.MouseButtonPress, QEvent.MouseButtonDblClick):
-            try:
-                # Vị trí toàn cục của cú click
-                gp = event.globalPos()
-                # Widget ở vị trí click (có thể None nếu ngoài khu vực app)
-                w = QApplication.widgetAt(gp)
 
-                # Nếu click vào chính bàn phím hoặc con của nó -> KHÔNG ẩn
-                if w is not None and (w is self or self.isAncestorOf(w)):
+    def eventFilter(self, obj, event):
+        if event.type() in (QEvent.MouseButtonPress, QEvent.MouseButtonDblClick):
+            try:
+                if not self.isVisible():
                     return False
 
-                # Ngược lại: click outside -> ẩn
-                if self.isVisible():
-                    self.hide()
+                w = QApplication.widgetAt(event.globalPos())
+
+                # Nếu click nằm trong keyboard HOẶC con của nó → bỏ qua
+                if w and (w is self or self.isAncestorOf(w)):
+                    return False
+
+                # Click outside
+                self.hide()
+
             except Exception:
-                # Nếu có lỗi, vẫn cứ để sự kiện đi tiếp
                 pass
 
-        return False  # không chặn sự kiện gốc
+        return False
+
+
     def move(self, x, y):
         if self.pos().x() == x and self.pos().y() == y:
             return  # không gọi super nếu vị trí giống cũ
-        print("move:", x, y)
         super().move(x, y)

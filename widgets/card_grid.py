@@ -1,123 +1,175 @@
-# widgets/card_grid.py
 from typing import List
-from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QGridLayout, QPushButton, QLabel, QScrollArea, QMessageBox
+    QWidget, QVBoxLayout,
+    QPushButton, QLabel, QScrollArea,
+    QMessageBox, QScroller, QScrollerProperties
 )
 
 from models.node import Node
 from models.store import NodeStore
 from .card import NodeCard
-from dialogs.add_node_dialog import AddNodeDialog
+from dialogs.discover_node_dialog import DiscoverNodeDialog, DiscoveredNode
+from dialogs.node_detail_dialog import NodeDetailDialog
+
 
 class CardGrid(QWidget):
     """
-    - Hiển thị NodeCard theo lưới (mặc định 2 cột).
-    - Có nút + ADD NODE dưới cùng (trải rộng).
-    - Tự reflow khi resize.
+    - Hiển thị NodeCard theo dạng ROW LIST (1 cột)
+    - Vuốt (swipe) thay cho scroll bar
+    - Có nút + ADD NODE dưới cùng
     """
-    def __init__(self, store: NodeStore, parent=None):
+
+    def _setup_smooth_swipe(self):
+        scroller = QScroller.scroller(self.scroll.viewport())
+        props = scroller.scrollerProperties()
+
+        props.setScrollMetric(
+            QScrollerProperties.DecelerationFactor, 0.05
+        )
+        props.setScrollMetric(
+            QScrollerProperties.MinimumVelocity, 0.0
+        )
+        props.setScrollMetric(
+            QScrollerProperties.MaximumVelocity, 0.8
+        )
+        props.setScrollMetric(
+            QScrollerProperties.DragStartDistance, 0.001
+        )
+        props.setScrollMetric(
+            QScrollerProperties.FrameRate,
+            QScrollerProperties.Fps60
+        )
+
+        scroller.setScrollerProperties(props)
+
+    def __init__(self, store: NodeStore, bus, parent=None):
         super().__init__(parent)
         self.store = store
-        self.columns = 2  # số cột mục tiêu
+        self.bus = bus
         self.cards: List[NodeCard] = []
+        self.bus.pumpStateChanged.connect(self.on_pump_state)
 
+        # ===== ROOT =====
         root = QVBoxLayout(self)
         root.setContentsMargins(12, 12, 12, 12)
         root.setSpacing(8)
 
-        # Tiêu đề
         title = QLabel("IoT Irrigation System")
         title.setObjectName("AppTitle")
-        root.addWidget(title, 0, Qt.AlignLeft)
+        root.addWidget(title)
 
-        # Scroll area để chứa grid
+        # ===== SCROLL =====
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
-        self.scroll.setFrameShape(self.scroll.NoFrame)
+        self.scroll.setFrameShape(QScrollArea.NoFrame)
+        self.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         root.addWidget(self.scroll, 1)
 
-        # Container bên trong scroll
+        # ===== CONTAINER =====
         self.container = QWidget()
-        self.grid = QGridLayout(self.container)
-        self.grid.setContentsMargins(6, 6, 6, 6)
-        self.grid.setHorizontalSpacing(16)
-        self.grid.setVerticalSpacing(16)
+        self.list_layout = QVBoxLayout(self.container)
+        self.list_layout.setContentsMargins(6, 6, 6, 6)
+        self.list_layout.setSpacing(16)
+
         self.scroll.setWidget(self.container)
 
-        # Nút Add Node (trải ngang)
+        QScroller.grabGesture(
+            self.scroll.viewport(),
+            QScroller.TouchGesture
+        )
+        self._setup_smooth_swipe()
+
+        # ===== ADD NODE =====
         self.add_bar = QPushButton("+ ADD NODE")
         self.add_bar.setObjectName("AddBar")
-        self.add_bar.setFixedHeight(44)
+        self.add_bar.setFixedHeight(64)
         self.add_bar.clicked.connect(self.on_add_node)
-
-        root.addWidget(self.add_bar, 0, Qt.AlignBottom)
+        root.addWidget(self.add_bar)
 
         self.rebuild()
 
-    # ---------- Data & UI ----------
+
+    # ======================================================
+    # DATA & UI
+    # ======================================================
     def rebuild(self):
-        # Xoá widget cũ
-        for i in reversed(range(self.grid.count())):
-            w = self.grid.itemAt(i).widget()
+        while self.list_layout.count():
+            w = self.list_layout.takeAt(0).widget()
             if w:
-                w.setParent(None)
                 w.deleteLater()
 
         self.cards.clear()
-        nodes = self.store.list()
 
-        # Tạo card
-        for n in nodes:
-            card = NodeCard(n)
+        for node in self.store.list():
+            card = NodeCard(node)
+            card.pumpCommand.connect(self.on_pump_command)
+            card.configChanged.connect(self.on_node_config_changed)
             card.removeRequested.connect(self.on_remove_node)
             card.detailRequested.connect(self.on_detail_node)
+
             self.cards.append(card)
+            self.list_layout.addWidget(card)
+            card._build_pump_list()
+        self.list_layout.addStretch(1)
 
-        self.reflow()
-
-    def reflow(self):
-        # Tính columns phù hợp với chiều rộng (có thể nâng cấp tính theo kích thước card)
-        w = self.width() if self.width() > 0 else self.parent().width()
-        # Heuristic: nếu < 780 px thì 1 cột, ngược lại 2 cột
-        self.columns = 1 if w < 780 else 2
-
-        # Đặt cards vào grid
-        r = c = 0
-        for card in self.cards:
-            self.grid.addWidget(card, r, c, Qt.AlignTop)
-            c += 1
-            if c >= self.columns:
-                c = 0
-                r += 1
-
-        # Thêm stretch để đẩy các card lên trên
-        self.grid.setRowStretch(r + 1, 1)
-
-    def resizeEvent(self, e):
-        super().resizeEvent(e)
-        self.reflow()
-
-    # ---------- Actions ----------
+    # ======================================================
+    # ACTIONS
+    # ======================================================
     def on_add_node(self):
-        dlg = AddNodeDialog(self)
-        if dlg.exec_():
-            node = dlg.result_node()
-            self.store.add(node)
+        dlg = DiscoverNodeDialog(self, self.store)
+
+        def on_selected(dn: DiscoveredNode):
+            node = Node.new(name=dn.uid)
+            node.mac = dn.mac
+            node.pumps = dn.pumps
+            self.store.add_or_update_by_mac(node)
             self.rebuild()
+
+        dlg.nodeSelected.connect(on_selected)
+        dlg.bind_bus(self.bus)
+        self.bus.get_node_list()
+        dlg.exec_()
 
     def on_remove_node(self, node_id: str):
         res = QMessageBox.question(
-            self, "Xóa Node", "Bạn có chắc muốn xóa node này?",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+            self,
+            "Xóa Node",
+            "Bạn có chắc muốn xóa node này?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
         )
-        if res == QMessageBox.Yes:
-            self.store.remove(node_id)
-            self.rebuild()
+        if res != QMessageBox.Yes:
+            return
+
+        self.store.remove(node_id)
+        self.rebuild()
 
     def on_detail_node(self, node_id: str):
-        # Bạn có thể mở dialog chi tiết node ở đây
         node = self.store.get(node_id)
-        if node:
-            QMessageBox.information(self, "Detail",
-                                    f"Node ID: {node.id}\nCrops: {node.crops}\nMAC: {node.mac}")
+        if not node:
+            return
+
+        dlg = NodeDetailDialog(node, self)
+        if dlg.exec_():
+            self.store.save()
+            self.rebuild()
+
+    def on_pump_state(self, node_id, pump_idx, state, next_sched):
+        for card in self.cards:
+            if card.node.id == node_id:
+                card.update_from_device(pump_idx, state, next_sched)
+                break
+    def on_pump_command(self, node_id: str, pump_idx: int, cmd: str):
+        """
+        Nhận lệnh ON/OFF từ NodeCard
+        """
+        print(
+            f"[UI → BUS] Node={node_id} "
+            f"Pump={pump_idx+1} CMD={cmd}"
+        )
+        self.bus.send_manual_command(node_id, pump_idx, cmd)
+
+    def on_node_config_changed(self, node_id: str):
+        print(f"[STORE] save config node={node_id}")
+        self.store.save()

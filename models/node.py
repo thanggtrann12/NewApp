@@ -1,27 +1,67 @@
-# models/node.py
-from dataclasses import dataclass
-import uuid
+from dataclasses import dataclass, field
 from typing import Dict
+import uuid
 
-@dataclass
+
 class Node:
-    id: str
-    crops: int = 1
-    mac: str = ""
-    name: str = ""  # tùy chọn, để sau nếu cần đặt tên node
+    def __init__(self):
+        self.id = str(uuid.uuid4())
+        self.mac = ""
+        self.name = ""
+        self.pumps = 0
 
+        # ===== CONFIG (SAVE) =====
+        self.pump_crop_map = {}
+        self.pump_mode = {}
+        self.auto_type = {}
+        self.pump_schedule = {}
+
+        # ===== RUNTIME (NOT SAVE) =====
+        self.pump_state = {}
+        self.next_schedule = {}
+        self.auto_running = {}
+
+    # ==================================================
     @staticmethod
-    def new(crops: int = 1, mac: str = "", name: str = "") -> "Node":
-        return Node(id=str(uuid.uuid4()), crops=crops, mac=mac, name=name)
+    def new(name="ESP Node"):
+        n = Node()
+        n.name = name
+        return n
 
-    def to_dict(self) -> Dict:
-        return {"id": self.id, "crops": self.crops, "mac": self.mac, "name": self.name}
+    # ==================================================
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "mac": self.mac,
+            "name": self.name,
+            "pumps": self.pumps,
+            "pump_crop_map": self.pump_crop_map,
+            "pump_mode": {str(k): v for k, v in self.pump_mode.items()},
+            "auto_type": {str(k): v for k, v in self.auto_type.items()},
+            "pump_schedule": {str(k): v for k, v in self.pump_schedule.items()},
+        }
 
+    # ==================================================
     @staticmethod
-    def from_dict(d: Dict) -> "Node":
-        return Node(
-            id=d["id"],
-            crops=int(d.get("crops", 1)),
-            mac=d.get("mac", ""),
-            name=d.get("name", ""),
-        )
+    def from_dict(d: dict):
+        n = Node()
+        n.id = d.get("id", n.id)
+        n.mac = d.get("mac", "").lower()
+        n.name = d.get("name", "")
+        n.pumps = int(d.get("pumps", 0) or 0)
+
+        # 🔥 FIX: convert keys back to int
+        n.pump_crop_map = {
+            int(k): v for k, v in d.get("pump_crop_map", {}).items()
+        }
+        n.pump_mode = {
+            int(k): v for k, v in d.get("pump_mode", {}).items()
+        }
+        n.auto_type = {
+            int(k): v for k, v in d.get("auto_type", {}).items()
+        }
+        n.pump_schedule = {
+            int(k): v for k, v in d.get("pump_schedule", {}).items()
+        }
+
+        return n

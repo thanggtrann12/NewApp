@@ -1,1 +1,33 @@
-[]
+[
+  {
+    "id": "6ecbc34c-4cf5-431c-846a-36b22675e3c3",
+    "mac": "48:55:19:e4:b2:ce",
+    "name": "ESP Node",
+    "pumps": 4,
+    "pump_crop_map": {},
+    "pump_mode": {
+      "0": "MANUAL",
+      "1": "AUTO",
+      "2": "AUTO",
+      "3": "MANUAL"
+    },
+    "auto_type": {
+      "0": "RECOMMEND",
+      "1": "TIMER",
+      "2": "TIMER",
+      "3": "RECOMMEND"
+    },
+    "pump_schedule": {
+      "0": [],
+      "1": [
+        [
+          "22:39",
+          4,
+          []
+        ]
+      ],
+      "2": [],
+      "3": []
+    }
+  }
+]
