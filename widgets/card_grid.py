@@ -74,10 +74,13 @@ class CardGrid(QWidget):
 
         self.scroll.setWidget(self.container)
 
+        self.scroll.setFocusPolicy(Qt.NoFocus)
+
         QScroller.grabGesture(
             self.scroll.viewport(),
             QScroller.TouchGesture
         )
+
         self._setup_smooth_swipe()
 
         # ===== ADD NODE =====

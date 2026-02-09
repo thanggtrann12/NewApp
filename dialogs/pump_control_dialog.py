@@ -63,8 +63,27 @@ class PumpControlDialog(QDialog):
         self.timer_list.setFixedHeight(90)
 
         schedules = getattr(node, "pump_schedule", {}).get(pump_idx, [])
-        for t, d in schedules:
-            QListWidgetItem(f"{t} – {d} min", self.timer_list)
+
+        for sch in schedules:
+            if not isinstance(sch, dict):
+                continue  # phòng thủ, bỏ data cũ
+
+            t = sch.get("time")
+            d = sch.get("duration")
+            days = sch.get("meta", {}).get("days", [])
+
+            if days:
+                DAY_NAMES = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+                day_txt = ",".join(
+                    DAY_NAMES[i] if isinstance(i, int) else str(i)
+                    for i in days
+                )
+                text = f"{t} – {d} min · {day_txt}"
+            else:
+                text = f"{t} – {d} min · Every day"
+
+            QListWidgetItem(text, self.timer_list)
+
 
         btn_row = QHBoxLayout()
 

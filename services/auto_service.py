@@ -31,7 +31,10 @@ class AutoService:
                     schedules = node.pump_schedule.get(idx, [])
                     if schedules:
                         # take first schedule (or compute next if you want)
-                        t, d = schedules[0]
+                        for sch in schedules:
+                            t = sch["time"]
+                            d = sch["duration"]
+
                         node.next_schedule[idx] = (t, d)
                         node.auto_reason[idx] = "Timer schedule"
 

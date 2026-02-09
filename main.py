@@ -36,11 +36,6 @@ class MainWindow(QWidget):
         self.grid = CardGrid(store, bus)
         layout.addWidget(self.grid)
 
-        QScroller.grabGesture(
-            self.grid,
-            QScroller.LeftMouseButtonGesture
-        )
-
 if __name__ == '__main__':
     app = QApplication(sys.argv)
 

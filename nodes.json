@@ -29,5 +29,15 @@
       "2": [],
       "3": []
     }
+  },
+  {
+    "id": "abc4ae5c-f4e3-4051-bed2-cf2c25c33db6",
+    "mac": "B0:A7:32:DB:9D:E8",
+    "name": "ESP Node",
+    "pumps": 4,
+    "pump_crop_map": {},
+    "pump_mode": {},
+    "auto_type": {},
+    "pump_schedule": {}
   }
 ]

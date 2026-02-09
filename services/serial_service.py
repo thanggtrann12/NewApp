@@ -43,6 +43,15 @@ class SerialNodeBus(QObject):
         print("[PI → ESP32]", cmd.strip())
         self.ser.write(cmd.encode())
 
+    def send_add_node(self, mac: str):
+        if not self.ser:
+            print("[BUS] serial not ready")
+            return
+
+        cmd = f"ADD_NODE mac={mac}\n"
+        print("[PI → ESP32]", cmd.strip())
+        self.ser.write(cmd.encode())
+
     def send_manual_command(self, node_id, pump_idx, cmd):
         if not self.ser or not self.store:
             return
