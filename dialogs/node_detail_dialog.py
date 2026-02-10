@@ -4,17 +4,17 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt
 from models.node import Node
-from dialogs.crop_select_dialog import CropSelectDialog, CROPS
+from dialogs.crop_select_dialog import CropSelectDialog
 
-
-# helper: crop_id -> crop_name
-CROP_NAME_MAP = {c["id"]: c["name"] for c in CROPS}
 
 
 class NodeDetailDialog(QDialog):
-    def __init__(self, node: Node, parent=None):
+    def __init__(self, node: Node, crop_registry, parent=None):
         super().__init__(parent)
         self.node = node
+        self.crop_registry = crop_registry
+        if not hasattr(self.node, "pump_crop_map"):
+            self.node.pump_crop_map = {}
         self.crop_labels = {}
 
         self.setWindowTitle("Node Configuration")
@@ -65,7 +65,8 @@ class NodeDetailDialog(QDialog):
                 lbl = QLabel(f"Pump {i + 1}")
 
                 crop_id = node.pump_crop_map.get(i)
-                crop_name = CROP_NAME_MAP.get(crop_id, "Not set")
+                crop = self.crop_registry.get(crop_id)
+                crop_name = crop.name if crop else "Not set"
 
                 crop_lbl = QLabel(crop_name)
                 crop_lbl.setMinimumWidth(160)
@@ -109,14 +110,14 @@ class NodeDetailDialog(QDialog):
     # ACTIONS
     # ==================================================
     def select_crop(self, pump_index: int):
-        dlg = CropSelectDialog(self)
+        dlg = CropSelectDialog(self.crop_registry, self)
         if dlg.exec_():
             crop = dlg.selected_crop        # ✅ dict
-            crop_id = crop["id"]            # ✅ string
+            crop_id = crop.id               # ✅ string
 
             self.node.pump_crop_map[pump_index] = crop_id
 
-            crop_name = CROP_NAME_MAP.get(crop_id, crop_id)
+            crop_name = crop.name
             self.crop_labels[pump_index].setText(crop_name)
 
     def on_save(self):

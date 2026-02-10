@@ -3,15 +3,13 @@ from services.auto_irrigation_engine import AutoIrrigationEngine
 
 
 class AutoService:
-    def __init__(self, bus, store):
+    def __init__(self, bus, store, crop_registry):
         self.bus = bus
         self.store = store
+        self.crops = crop_registry
 
-        self.weather = WeatherService(
-            lat=10.8231,
-            lon=106.6297
-        )
-        self.engine = AutoIrrigationEngine()
+        self.weather = WeatherService(lat=10.8231, lon=106.6297)
+        self.engine = AutoIrrigationEngine(self.crops)
 
     # ==================================================
     def run(self):
@@ -19,37 +17,42 @@ class AutoService:
 
         for node in self.store.list():
 
-            # ensure runtime fields
             if not hasattr(node, "next_schedule"):
                 node.next_schedule = {}
             if not hasattr(node, "auto_reason"):
                 node.auto_reason = {}
 
-            # ===== HANDLE TIMER AUTO =====
+            # ===== AUTO TIMER =====
             for idx, auto_type in node.auto_type.items():
-                if auto_type == "TIMER":
-                    schedules = node.pump_schedule.get(idx, [])
-                    if schedules:
-                        # take first schedule (or compute next if you want)
-                        for sch in schedules:
-                            t = sch["time"]
-                            d = sch["duration"]
+                if auto_type != "TIMER":
+                    continue
 
-                        node.next_schedule[idx] = (t, d)
-                        node.auto_reason[idx] = "Timer schedule"
+                schedules = node.pump_schedule.get(idx, [])
+                if not schedules:
+                    continue
 
-                        # 🔥 notify UI
-                        self.bus.pumpStateChanged.emit(
-                            node.id,
-                            idx,
-                            node.pump_state.get(idx, "OFF"),
-                            node.next_schedule[idx]
-                        )
+                sch = schedules[0]
+                t = sch["time"]
+                d = sch["duration"]
 
-            # ===== HANDLE WEATHER AUTO =====
+                node.next_schedule[idx] = (t, d)
+                node.auto_reason[idx] = "Timer schedule"
+
+                self.bus.pumpStateChanged.emit(
+                    node.id,
+                    idx,
+                    node.pump_state.get(idx, "OFF"),
+                    node.next_schedule[idx]
+                )
+
+            # ===== AUTO RECOMMEND (BY CROP + WEATHER) =====
             decisions = self.engine.compute(node, weather)
 
             for idx, d in decisions.items():
+                auto_type = node.auto_type.get(idx)
+                if auto_type != "RECOMMEND":
+                    continue   # 🔥 KHÔNG đè TIMER
+
                 if d["action"] == "RUN":
                     node.next_schedule[idx] = (d["time"], d["duration"])
                     node.auto_reason[idx] = d["reason"]
@@ -61,10 +64,12 @@ class AutoService:
                     node.next_schedule.pop(idx, None)
                     node.auto_reason[idx] = d["reason"]
 
-                # notify UI
                 self.bus.pumpStateChanged.emit(
                     node.id,
                     idx,
                     node.pump_state.get(idx, "OFF"),
                     node.next_schedule.get(idx)
                 )
+
+        self.store.save()
+

@@ -62,18 +62,20 @@ class PumpControlDialog(QDialog):
         self.timer_list = QListWidget()
         self.timer_list.setFixedHeight(90)
 
+        # ===== BUILD SCHEDULES =====
         schedules = getattr(node, "pump_schedule", {}).get(pump_idx, [])
+
+        DAY_NAMES = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
 
         for sch in schedules:
             if not isinstance(sch, dict):
-                continue  # phòng thủ, bỏ data cũ
+                continue
 
             t = sch.get("time")
             d = sch.get("duration")
             days = sch.get("meta", {}).get("days", [])
 
             if days:
-                DAY_NAMES = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
                 day_txt = ",".join(
                     DAY_NAMES[i] if isinstance(i, int) else str(i)
                     for i in days
@@ -82,23 +84,19 @@ class PumpControlDialog(QDialog):
             else:
                 text = f"{t} – {d} min · Every day"
 
-            QListWidgetItem(text, self.timer_list)
-
+            item = QListWidgetItem(text, self.timer_list)
+            item.setData(Qt.UserRole, (t, d, days))   # ✅ Gán dữ liệu
 
         btn_row = QHBoxLayout()
-
         add_timer_btn = QPushButton("Add Timer")
         del_timer_btn = QPushButton("Remove")
-
         add_timer_btn.clicked.connect(self._add_timer)
         del_timer_btn.clicked.connect(self._remove_timer)
-
         btn_row.addWidget(add_timer_btn)
         btn_row.addWidget(del_timer_btn)
 
         auto_layout.addWidget(self.timer_list)
         auto_layout.addLayout(btn_row)
-
 
         root.addWidget(self.auto_box)
 
@@ -106,10 +104,8 @@ class PumpControlDialog(QDialog):
         footer = QHBoxLayout()
         save_btn = QPushButton("SAVE")
         cancel_btn = QPushButton("CANCEL")
-
         save_btn.clicked.connect(self.accept)
         cancel_btn.clicked.connect(self.reject)
-
         footer.addStretch(1)
         footer.addWidget(cancel_btn)
         footer.addWidget(save_btn)
@@ -139,9 +135,9 @@ class PumpControlDialog(QDialog):
         dur_edit.setDisplayFormat("mm")
         lay.addWidget(QLabel("Duration (min)"))
         lay.addWidget(dur_edit)
+
         days_box = QGroupBox("Repeat on")
         days_lay = QHBoxLayout(days_box)
-
         day_checks = []
         labels = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
 
@@ -151,6 +147,7 @@ class PumpControlDialog(QDialog):
             days_lay.addWidget(cb)
 
         lay.addWidget(days_box)
+
         ok = QPushButton("OK")
         ok.clicked.connect(dlg.accept)
         lay.addWidget(ok)
@@ -165,7 +162,12 @@ class PumpControlDialog(QDialog):
                 label += " · " + ",".join(labels[i] for i in days)
 
             item = QListWidgetItem(label, self.timer_list)
-            item.setData(Qt.UserRole, (t, d, days))
+            item.setData(Qt.UserRole, (t, d, days))   # ✅ Gán dữ liệu
+
+    def _remove_timer(self):
+        row = self.timer_list.currentRow()
+        if row >= 0:
+            self.timer_list.takeItem(row)
 
     def result_data(self):
         mode = "MANUAL" if self.manual_radio.isChecked() else "AUTO"
@@ -174,16 +176,12 @@ class PumpControlDialog(QDialog):
         schedules = []
         for i in range(self.timer_list.count()):
             item = self.timer_list.item(i)
-            t, d, days = item.data(Qt.UserRole)
-            schedules.append((t, d, days))
-
+            data = item.data(Qt.UserRole)
+            if data is not None:
+                t, d, days = data
+                schedules.append((t, d, days))
         return {
             "mode": mode,
             "auto_type": auto_type,
             "schedule": schedules
         }
-
-    def _remove_timer(self):
-        row = self.timer_list.currentRow()
-        if row >= 0:
-            self.timer_list.takeItem(row)

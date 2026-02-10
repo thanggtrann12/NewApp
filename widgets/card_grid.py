@@ -1,17 +1,12 @@
+# card_grid_fixed.py
 from typing import List
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout,
-    QPushButton, QLabel, QScrollArea,
-    QMessageBox, QScroller, QScrollerProperties
+    QScrollArea, QScroller, QScrollerProperties
 )
-
-from models.node import Node
-from models.store import NodeStore
 from .card import NodeCard
-from dialogs.discover_node_dialog import DiscoverNodeDialog, DiscoveredNode
-from dialogs.node_detail_dialog import NodeDetailDialog
-
+from models.store import NodeStore
 
 class CardGrid(QWidget):
     """
@@ -21,6 +16,7 @@ class CardGrid(QWidget):
     """
 
     def _setup_smooth_swipe(self):
+        # Cấu hình kinetic scrolling
         scroller = QScroller.scroller(self.scroll.viewport())
         props = scroller.scrollerProperties()
 
@@ -43,10 +39,17 @@ class CardGrid(QWidget):
 
         scroller.setScrollerProperties(props)
 
-    def __init__(self, store: NodeStore, bus, parent=None):
+        # Grab gesture: cho cả touch + drag chuột trên PC
+        QScroller.grabGesture(
+            self.scroll.viewport(),
+            QScroller.TouchGesture | QScroller.LeftMouseButtonGesture
+        )
+
+    def __init__(self, store: NodeStore, bus, crop_registry, parent=None):
         super().__init__(parent)
         self.store = store
         self.bus = bus
+        self.crop_registry = crop_registry
         self.cards: List[NodeCard] = []
         self.bus.pumpStateChanged.connect(self.on_pump_state)
 
@@ -55,35 +58,33 @@ class CardGrid(QWidget):
         root.setContentsMargins(12, 12, 12, 12)
         root.setSpacing(8)
 
+        # ===== TITLE =====
+        from PyQt5.QtWidgets import QLabel, QPushButton
         title = QLabel("IoT Irrigation System")
         title.setObjectName("AppTitle")
         root.addWidget(title)
 
-        # ===== SCROLL =====
+        # ===== SCROLL AREA =====
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         self.scroll.setFrameShape(QScrollArea.NoFrame)
         self.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scroll.setFocusPolicy(Qt.NoFocus)
         root.addWidget(self.scroll, 1)
 
         # ===== CONTAINER =====
         self.container = QWidget()
+        self.container.setAttribute(Qt.WA_AcceptTouchEvents, True)
         self.list_layout = QVBoxLayout(self.container)
         self.list_layout.setContentsMargins(6, 6, 6, 6)
         self.list_layout.setSpacing(16)
-
         self.scroll.setWidget(self.container)
 
-        self.scroll.setFocusPolicy(Qt.NoFocus)
-
-        QScroller.grabGesture(
-            self.scroll.viewport(),
-            QScroller.TouchGesture
-        )
-
+        # ===== ENABLE SWIPE =====
         self._setup_smooth_swipe()
 
-        # ===== ADD NODE =====
+        # ===== ADD NODE BUTTON =====
         self.add_bar = QPushButton("+ ADD NODE")
         self.add_bar.setObjectName("AddBar")
         self.add_bar.setFixedHeight(64)
@@ -92,9 +93,8 @@ class CardGrid(QWidget):
 
         self.rebuild()
 
-
     # ======================================================
-    # DATA & UI
+    # BUILD UI FROM STORE
     # ======================================================
     def rebuild(self):
         while self.list_layout.count():
@@ -105,7 +105,7 @@ class CardGrid(QWidget):
         self.cards.clear()
 
         for node in self.store.list():
-            card = NodeCard(node)
+            card = NodeCard(node, self.crop_registry)
             card.pumpCommand.connect(self.on_pump_command)
             card.configChanged.connect(self.on_node_config_changed)
             card.removeRequested.connect(self.on_remove_node)
@@ -117,12 +117,15 @@ class CardGrid(QWidget):
         self.list_layout.addStretch(1)
 
     # ======================================================
-    # ACTIONS
+    # ACTIONS (override trong MainWindow)
     # ======================================================
     def on_add_node(self):
+        from dialogs.discover_node_dialog import DiscoverNodeDialog, DiscoveredNode
+
         dlg = DiscoverNodeDialog(self, self.store)
 
         def on_selected(dn: DiscoveredNode):
+            from models.node import Node
             node = Node.new(name=dn.uid)
             node.mac = dn.mac
             node.pumps = dn.pumps
@@ -135,6 +138,7 @@ class CardGrid(QWidget):
         dlg.exec_()
 
     def on_remove_node(self, node_id: str):
+        from PyQt5.QtWidgets import QMessageBox
         res = QMessageBox.question(
             self,
             "Xóa Node",
@@ -144,7 +148,6 @@ class CardGrid(QWidget):
         )
         if res != QMessageBox.Yes:
             return
-
         self.store.remove(node_id)
         self.rebuild()
 
@@ -152,8 +155,8 @@ class CardGrid(QWidget):
         node = self.store.get(node_id)
         if not node:
             return
-
-        dlg = NodeDetailDialog(node, self)
+        from dialogs.node_detail_dialog import NodeDetailDialog
+        dlg = NodeDetailDialog(node, self.crop_registry, self)
         if dlg.exec_():
             self.store.save()
             self.rebuild()
@@ -163,14 +166,9 @@ class CardGrid(QWidget):
             if card.node.id == node_id:
                 card.update_from_device(pump_idx, state, next_sched)
                 break
+
     def on_pump_command(self, node_id: str, pump_idx: int, cmd: str):
-        """
-        Nhận lệnh ON/OFF từ NodeCard
-        """
-        print(
-            f"[UI → BUS] Node={node_id} "
-            f"Pump={pump_idx+1} CMD={cmd}"
-        )
+        print(f"[UI → BUS] Node={node_id} Pump={pump_idx+1} CMD={cmd}")
         self.bus.send_manual_command(node_id, pump_idx, cmd)
 
     def on_node_config_changed(self, node_id: str):

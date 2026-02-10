@@ -1,45 +1,54 @@
-from datetime import datetime
+import random
 
 
 class AutoIrrigationEngine:
     """
-    Weather-based AUTO irrigation engine (no sensors)
+    Crop + Weather based AUTO irrigation engine
 
     - Stateless
-    - Safe
     - Explainable
+    - Safe
     """
 
-    # ===== SAFETY LIMITS =====
-    MAX_SINGLE_RUN = 15        # minutes
+    DEFAULT_TIME = "18:00"
+
+    MAX_SINGLE_RUN = 15
     MIN_SINGLE_RUN = 3
-    DEFAULT_TIME = "18:00"     # watering time
 
-    # Crop water needs multiplier
-    CROP_FACTOR = {
-        "grass": 1.0,
-        "flower": 0.7,
-        "tree": 0.5,
-        "vegetable": 0.9
-    }
+    def __init__(self, crop_registry):
+        self.crops = crop_registry
 
+    # ==================================================
     def compute(self, node, weather: dict) -> dict:
-        """
-        Compute AUTO decision for all pumps in a node
-        """
         decisions = {}
 
         for idx in range(node.pumps):
             if node.pump_mode.get(idx) != "AUTO":
                 continue
 
-            crop = getattr(node, "pump_crop_map", {}).get(idx, "grass")
-            decisions[idx] = self._decide_for_pump(idx, crop, weather)
+            crop_id = node.pump_crop_map.get(idx)
+            decisions[idx] = self._decide_for_pump(
+                crop_id, weather
+            )
 
         return decisions
 
     # ==================================================
-    def _decide_for_pump(self, idx: int, crop: str, weather: dict) -> dict:
+    def _decide_for_pump(self, crop_id: str | None, weather: dict) -> dict:
+        # ❌ No crop
+        if not crop_id:
+            return {
+                "action": "SKIP",
+                "reason": "No crop set"
+            }
+
+        crop = self.crops.get(crop_id)
+        if not crop:
+            return {
+                "action": "SKIP",
+                "reason": "Unknown crop"
+            }
+
         rain_prob = weather.get("rain_prob", 0)
         rain_mm = weather.get("rain_mm", 0)
         temp = weather.get("temp_max", 25)
@@ -52,31 +61,30 @@ class AutoIrrigationEngine:
                 "reason": f"Rain expected ({rain_prob}%)"
             }
 
-        # 🔥 BASE DURATION FROM TEMPERATURE
-        if temp >= 38:
-            duration = 15
-            reason = f"Very hot day ({temp}°C)"
-        elif temp >= 33:
-            duration = 12
-            reason = f"Hot day ({temp}°C)"
-        elif temp >= 28:
-            duration = 8
-            reason = f"Warm day ({temp}°C)"
-        else:
-            duration = 5
-            reason = f"Cool day ({temp}°C)"
+        w = crop.water
+
+        # 🌱 BASE FROM CROP (CORE)
+        base = random.randint(
+            w["min_minutes"],
+            w["max_minutes"]
+        )
+        reason = f"By crop: {crop.name}"
+
+        # 🔥 TEMP ADJUST
+        if temp >= 35:
+            base += 2
+            reason += f", hot ({temp}°C)"
+        elif temp <= 22:
+            base -= 1
+            reason += f", cool ({temp}°C)"
 
         # 💧 HUMIDITY ADJUST
         if humidity >= 85:
-            duration -= 3
-            reason += ", high humidity"
+            base -= 2
+            reason += ", humid"
 
-        # 🌱 CROP ADJUST
-        factor = self.CROP_FACTOR.get(crop, 1.0)
-        duration = int(duration * factor)
-
-        # 🔒 SAFETY CLAMPS
-        duration = max(self.MIN_SINGLE_RUN, duration)
+        # 🔒 SAFETY CLAMP
+        duration = max(self.MIN_SINGLE_RUN, base)
         duration = min(self.MAX_SINGLE_RUN, duration)
 
         return {

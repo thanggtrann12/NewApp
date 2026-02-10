@@ -5,37 +5,11 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QPixmap
 
-
-# =========================
-# APP-LEVEL CROP DATA
-# =========================
-CROPS = [
-    {
-        "id": "tomato",
-        "name": "Tomato",
-        "image": "assets/crops/tomato.png",
-        "suggest": "6–8 min / day"
-    },
-    {
-        "id": "lettuce",
-        "name": "Lettuce",
-        "image": "assets/crops/lettuce.png",
-        "suggest": "4–6 min / day"
-    },
-    {
-        "id": "chili",
-        "name": "Chili",
-        "image": "assets/crops/chili.png",
-        "suggest": "5–7 min / day"
-    }
-]
-
-
 # =========================
 # CROP CARD
 # =========================
 class CropCard(QFrame):
-    clicked = pyqtSignal(dict)
+    clicked = pyqtSignal(object)
 
     def __init__(self, crop: dict, parent=None):
         super().__init__(parent)
@@ -54,7 +28,7 @@ class CropCard(QFrame):
 
         # Image
         img = QLabel()
-        pix = QPixmap(crop["image"])
+        pix = QPixmap(crop.image)
         if not pix.isNull():
             img.setPixmap(
                 pix.scaled(
@@ -66,12 +40,12 @@ class CropCard(QFrame):
         img.setAlignment(Qt.AlignCenter)
 
         # Name
-        name = QLabel(crop["name"])
+        name = QLabel(crop.name)
         name.setAlignment(Qt.AlignCenter)
         name.setStyleSheet("font-weight: bold;")
 
         # Suggestion
-        suggest = QLabel(crop["suggest"])
+        suggest = QLabel(crop.suggest_text)
         suggest.setAlignment(Qt.AlignCenter)
         suggest.setStyleSheet("color: #666;")
 
@@ -88,10 +62,10 @@ class CropCard(QFrame):
 # SELECT DIALOG
 # =========================
 class CropSelectDialog(QDialog):
-    def __init__(self, parent=None):
+    def __init__(self,  crop_registry, parent=None):
         super().__init__(parent)
         self.selected_crop = None
-
+        self.registry = crop_registry
         self.setWindowTitle("Select Crop")
         self.setModal(True)
         self.resize(420, 360)
@@ -122,7 +96,7 @@ class CropSelectDialog(QDialog):
         grid.setContentsMargins(6, 6, 6, 6)
 
         r = c = 0
-        for crop in CROPS:
+        for crop in self.registry.all():
             card = CropCard(crop)
             card.clicked.connect(self.on_select)
             grid.addWidget(card, r, c, Qt.AlignTop)

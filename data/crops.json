@@ -1,0 +1,32 @@
+[
+  {
+    "id": "tomato",
+    "name": "Tomato",
+    "image": "assets/crops/tomato.png",
+    "water": {
+      "min_minutes": 6,
+      "max_minutes": 8,
+      "times_per_day": 1
+    }
+  },
+  {
+    "id": "lettuce",
+    "name": "Lettuce",
+    "image": "assets/crops/lettuce.png",
+    "water": {
+      "min_minutes": 4,
+      "max_minutes": 6,
+      "times_per_day": 1
+    }
+  },
+  {
+    "id": "chili",
+    "name": "Chili",
+    "image": "assets/crops/chili.png",
+    "water": {
+      "min_minutes": 5,
+      "max_minutes": 7,
+      "times_per_day": 1
+    }
+  }
+]

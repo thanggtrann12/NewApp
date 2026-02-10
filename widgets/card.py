@@ -1,14 +1,10 @@
-from PyQt5.QtCore import pyqtSignal, Qt
+from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtWidgets import (
     QFrame, QVBoxLayout, QHBoxLayout,
-    QLabel, QPushButton,
-    QGridLayout, QWidget, QSizePolicy
+    QLabel, QPushButton, QWidget, QSizePolicy,
+    QGraphicsDropShadowEffect
 )
-from PyQt5.QtGui import QColor
-from PyQt5.QtWidgets import QGraphicsDropShadowEffect
-from PyQt5.QtCore import pyqtSignal, Qt, QEvent
-
-DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+from PyQt5.QtGui import QColor, QFontMetrics
 
 
 class NodeCard(QFrame):
@@ -17,25 +13,22 @@ class NodeCard(QFrame):
     configChanged = pyqtSignal(str)
     pumpCommand = pyqtSignal(str, int, str)
 
-    # ==================================================
-    def __init__(self, node, parent=None):
+    def __init__(self, node, crop_registry, parent=None):
         super().__init__(parent)
         self.node = node
-
-        # ===== ENSURE FIELDS =====
+        self.crop_registry = crop_registry
+        # ===== ensure attrs =====
         self.node.pump_mode = getattr(self.node, "pump_mode", {})
         self.node.auto_type = getattr(self.node, "auto_type", {})
         self.node.pump_schedule = getattr(self.node, "pump_schedule", {})
         self.node.pump_state = getattr(self.node, "pump_state", {})
         self.node.next_schedule = getattr(self.node, "next_schedule", {})
         self.node.auto_reason = getattr(self.node, "auto_reason", {})
+        self.node.pump_crop_map = getattr(self.node, "pump_crop_map", {})
 
-        # ===== CARD =====
         self.setObjectName("Card")
-        self.setMinimumSize(320, 300)
+        self.setMinimumWidth(320)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
-        self.setFocusPolicy(Qt.NoFocus)
-        self.setAttribute(Qt.WA_NoMousePropagation, False)
 
         shadow = QGraphicsDropShadowEffect(self)
         shadow.setBlurRadius(8)
@@ -46,7 +39,7 @@ class NodeCard(QFrame):
         # ===== ROOT =====
         root = QVBoxLayout(self)
         root.setContentsMargins(16, 16, 16, 16)
-        root.setSpacing(8)
+        root.setSpacing(10)
 
         # ===== HEADER =====
         header = QHBoxLayout()
@@ -56,7 +49,6 @@ class NodeCard(QFrame):
         close_btn = QPushButton("✕")
         close_btn.setObjectName("CloseButton")
         close_btn.setFixedSize(36, 36)
-        close_btn.setFocusPolicy(Qt.NoFocus)
         close_btn.clicked.connect(
             lambda: self.removeRequested.emit(self.node.id)
         )
@@ -65,11 +57,10 @@ class NodeCard(QFrame):
         header.addWidget(close_btn)
 
         # ===== PUMP LIST =====
-        self.grid_widget = QWidget()
-        self.grid = QGridLayout(self.grid_widget)
-        self.grid.setContentsMargins(0, 4, 0, 0)
-        self.grid.setHorizontalSpacing(12)
-        self.grid.setVerticalSpacing(6)
+        self.list_widget = QWidget()
+        self.list_layout = QVBoxLayout(self.list_widget)
+        self.list_layout.setContentsMargins(0, 4, 0, 0)
+        self.list_layout.setSpacing(8)
 
         self._pump_rows = {}
         self._build_pump_list()
@@ -78,13 +69,12 @@ class NodeCard(QFrame):
         detail_btn = QPushButton("DETAIL")
         detail_btn.setObjectName("DetailButton")
         detail_btn.setFixedHeight(36)
-        detail_btn.setFocusPolicy(Qt.NoFocus)
         detail_btn.clicked.connect(
             lambda: self.detailRequested.emit(self.node.id)
         )
 
         root.addLayout(header)
-        root.addWidget(self.grid_widget)
+        root.addWidget(self.list_widget)
         root.addStretch(1)
         root.addWidget(detail_btn)
 
@@ -92,32 +82,49 @@ class NodeCard(QFrame):
     # BUILD PUMP LIST
     # ==================================================
     def _build_pump_list(self):
-        while self.grid.count():
-            w = self.grid.takeAt(0).widget()
+        while self.list_layout.count():
+            w = self.list_layout.takeAt(0).widget()
             if w:
                 w.deleteLater()
-
         self._pump_rows.clear()
 
         pumps = int(getattr(self.node, "pumps", 0))
         if pumps <= 0:
-            lbl = QLabel("No pumps connected")
-            lbl.setObjectName("PumpEmpty")
-            self.grid.addWidget(lbl, 0, 0)
+            self.list_layout.addWidget(QLabel("No pumps connected"))
             return
 
         for i in range(pumps):
-            pump_btn = QPushButton(f"Pump {i+1}")
+            # ---- pump title ----
+            pump_btn = QPushButton()
             pump_btn.setObjectName("PumpButton")
-            pump_btn.setFocusPolicy(Qt.NoFocus)
+            pump_btn.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Fixed)
+            pump_btn.setFixedHeight(28)
             pump_btn.clicked.connect(
                 lambda _, idx=i: self._open_config(idx)
             )
 
-            info_lbl = QLabel("-")
-            info_lbl.setObjectName("PumpInfo")
-            info_lbl.setWordWrap(True)
+            # ---- WHAT ----
+            info_main = QLabel("-")
+            info_main.setObjectName("PumpInfoMain")
+            info_main.setWordWrap(False)
+            info_main.setFixedHeight(20)
+            info_main.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            info_main.setSizePolicy(
+                QSizePolicy.Expanding, QSizePolicy.Fixed
+            )
 
+            # ---- WHY ----
+            info_reason = QLabel("")
+            info_reason.setObjectName("PumpInfoReason")
+            info_reason.setWordWrap(False)
+            info_reason.setFixedHeight(20)
+            info_reason.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            info_reason.setSizePolicy(
+                QSizePolicy.Maximum, QSizePolicy.Fixed
+            )
+            info_reason.setStyleSheet("color:#9aa0a6;")
+
+            # ---- manual ctrl ----
             ctrl = QWidget()
             ctrl_lay = QHBoxLayout(ctrl)
             ctrl_lay.setContentsMargins(0, 0, 0, 0)
@@ -127,8 +134,8 @@ class NodeCard(QFrame):
             off_btn = QPushButton("OFF")
             on_btn.setObjectName("PumpOn")
             off_btn.setObjectName("PumpOff")
-            on_btn.setFocusPolicy(Qt.NoFocus)
-            off_btn.setFocusPolicy(Qt.NoFocus)
+            on_btn.setFixedSize(64, 28)
+            off_btn.setFixedSize(64, 28)
 
             on_btn.clicked.connect(
                 lambda _, idx=i: self._manual_cmd(idx, "ON")
@@ -141,22 +148,32 @@ class NodeCard(QFrame):
             ctrl_lay.addWidget(off_btn)
             ctrl.setVisible(False)
 
-            row = i * 2
-            self.grid.addWidget(pump_btn, row, 0, Qt.AlignLeft)
-            self.grid.addWidget(info_lbl, row, 1, Qt.AlignLeft)
-            self.grid.addWidget(ctrl, row + 1, 0, 1, 2)
+            # ---- row ----
+            row = QWidget()
+            row_lay = QHBoxLayout(row)
+            row_lay.setContentsMargins(0, 0, 0, 0)
+            row_lay.setSpacing(12)
 
-            self._pump_rows[i] = (pump_btn, info_lbl, ctrl)
+            row_lay.addWidget(pump_btn, 0, Qt.AlignVCenter)
+            row_lay.addWidget(info_main, 1, Qt.AlignVCenter)
+            row_lay.addWidget(info_reason, 0, Qt.AlignVCenter)
+            row_lay.addWidget(ctrl, 0, Qt.AlignVCenter)
+
+            self.list_layout.addWidget(row)
+
+            self._pump_rows[i] = (
+                pump_btn, info_main, info_reason, ctrl
+            )
             self._update_pump_row(i)
 
     # ==================================================
-    # UPDATE PUMP ROW
+    # UPDATE ROW
     # ==================================================
     def _update_pump_row(self, idx: int):
         if idx not in self._pump_rows:
             return
 
-        pump_btn, info_lbl, ctrl = self._pump_rows[idx]
+        pump_btn, info_main, info_reason, ctrl = self._pump_rows[idx]
 
         pump_mode = self.node.pump_mode.get(idx, "AUTO")
         auto_type = self.node.auto_type.get(idx, "RECOMMEND")
@@ -165,125 +182,78 @@ class NodeCard(QFrame):
         next_sched = self.node.next_schedule.get(idx)
         auto_reason = self.node.auto_reason.get(idx)
 
-        # ===== MANUAL =====
+        crop_id = self.node.pump_crop_map.get(idx)
+        crop = self.crop_registry.get(crop_id)
+        crop_txt = f" {crop.name}" if crop else ""
+
         if pump_mode == "MANUAL":
-            pump_btn.setText(f"Pump {idx+1}  [MANUAL]")
+            pump_btn.setText(f"Pump {idx+1}{crop_txt} [MANUAL]")
             ctrl.setVisible(True)
-
-            if pump_state == "ON":
-                info_lbl.setText("● RUNNING")
-                info_lbl.setProperty("state", "RUNNING")
-            else:
-                info_lbl.setText("OFF")
-                info_lbl.setProperty("state", "OFF")
-
-        # ===== AUTO =====
+            info_main.setText(
+                "● RUNNING" if pump_state == "ON" else "● OFF"
+            )
+            info_reason.setText("")
         else:
+            pump_btn.setText(f"Pump {idx+1}{crop_txt} [AUTO]")
             ctrl.setVisible(False)
-            pump_btn.setText(f"Pump {idx+1}  [AUTO]")
 
-            # ---- AUTO TIMER ----
             if auto_type == "TIMER" and schedules:
-                lines = []
-                for sch in schedules:
-                    if not isinstance(sch, dict):
-                        continue
-
-                    t = sch.get("time")
-                    d = sch.get("duration")
-                    meta = sch.get("meta", {})
-                    days = meta.get("days", []) if isinstance(meta, dict) else []
-
-                    if days:
-                        labels = []
-                        for x in days:
-                            if isinstance(x, int) and 0 <= x < 7:
-                                labels.append(DAY_NAMES[x])
-                            elif isinstance(x, str):
-                                labels.append(x[:3].title())
-                        day_txt = ",".join(labels)
-                    else:
-                        day_txt = "Every day"
-
-                    lines.append(f"⏰ {t} ({d} min) · {day_txt}")
-
-                info_lbl.setText("\n".join(lines) if lines else "-")
-
-            # ---- AUTO RECOMMEND (computed) ----
+                t, d, *_ = schedules[0]
+                info_main.setText(
+                    f"⏰ {t} ({d} min)"
+                )
+                info_reason.setText("")
             elif auto_type == "RECOMMEND" and next_sched:
                 t, d = next_sched
-                info_lbl.setText(
-                    f"{t} ({d} min) · {auto_reason}"
-                    if auto_reason else
-                    f"{t} ({d} min)"
-                )
-
-            # ---- AUTO RECOMMEND (waiting) ----
-            elif auto_type == "RECOMMEND":
-                info_lbl.setText("Waiting for weather decision")
-
-            # ---- AUTO SKIPPED ----
+                info_main.setText(f"🌦 {t} ({d} min)")
+                info_reason.setText(auto_reason or "")
             elif auto_reason:
-                info_lbl.setText(f"Skipped · {auto_reason}")
-
+                info_main.setText("⛔ Skipped")
+                info_reason.setText(auto_reason)
             else:
-                info_lbl.setText("-")
+                info_main.setText("-")
+                info_reason.setText("")
 
-            info_lbl.setProperty("state", "")
+        # ---- elide ----
+        fm = QFontMetrics(info_main.font())
+        info_main.setText(
+            fm.elidedText(info_main.text(), Qt.ElideRight, info_main.width())
+        )
 
-        pump_btn.style().unpolish(pump_btn)
-        pump_btn.style().polish(pump_btn)
-        info_lbl.style().unpolish(info_lbl)
-        info_lbl.style().polish(info_lbl)
+        fm2 = QFontMetrics(info_reason.font())
+        info_reason.setText(
+            fm2.elidedText(
+                info_reason.text(), Qt.ElideRight, info_reason.width()
+            )
+        )
+
+        pump_btn.adjustSize()
 
     # ==================================================
-    # OPEN CONFIG
+    # ACTIONS
     # ==================================================
     def _open_config(self, idx: int):
         from dialogs.pump_control_dialog import PumpControlDialog
-
         dlg = PumpControlDialog(self.node, idx, self)
         if dlg.exec_():
             data = dlg.result_data()
             self.node.pump_mode[idx] = data["mode"]
             self.node.auto_type[idx] = data["auto_type"]
-            self.node.pump_schedule[idx] = data["schedule"]
+            self.node.pump_schedule[idx] = [
+                (t, d) for (t, d, _days) in data["schedule"]
+            ]
             self._update_pump_row(idx)
             self.configChanged.emit(self.node.id)
 
-    # ==================================================
-    # MANUAL COMMAND
-    # ==================================================
     def _manual_cmd(self, idx: int, cmd: str):
         self.node.pump_state[idx] = "ON" if cmd == "ON" else "OFF"
         self._update_pump_row(idx)
         self.pumpCommand.emit(self.node.id, idx, cmd)
 
-    # ==================================================
-    # DEVICE UPDATE
-    # ==================================================
     def update_from_device(self, pump_idx, state, next_sched=None):
         if pump_idx not in self._pump_rows:
             self._build_pump_list()
-            if pump_idx not in self._pump_rows:
-                return
-
         self.node.pump_state[pump_idx] = state
-
         if next_sched:
             self.node.next_schedule[pump_idx] = next_sched
-
         self._update_pump_row(pump_idx)
-
-    # ==================================================
-    # IMPORTANT: PASS SCROLL GESTURE
-    # ==================================================
-    def event(self, e):
-        if e.type() in (
-            QEvent.TouchBegin,
-            QEvent.TouchUpdate,
-            QEvent.TouchEnd,
-            QEvent.MouseMove,
-        ):
-            return False
-        return super().event(e)
