@@ -47,7 +47,8 @@ class AutoService:
 
             # ===== AUTO RECOMMEND (BY CROP + WEATHER) =====
             decisions = self.engine.compute(node, weather)
-
+            node._last_auto_decision = decisions
+            node._last_weather = weather
             for idx, d in decisions.items():
                 auto_type = node.auto_type.get(idx)
                 if auto_type != "RECOMMEND":

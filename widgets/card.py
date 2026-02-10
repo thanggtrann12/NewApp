@@ -228,7 +228,10 @@ class NodeCard(QFrame):
         )
 
         pump_btn.adjustSize()
-
+        info_reason.setCursor(Qt.PointingHandCursor)
+        info_reason.mousePressEvent = (
+            lambda e, idx=idx: self._open_auto_debug(idx)
+        )
     # ==================================================
     # ACTIONS
     # ==================================================
@@ -257,3 +260,26 @@ class NodeCard(QFrame):
         if next_sched:
             self.node.next_schedule[pump_idx] = next_sched
         self._update_pump_row(pump_idx)
+
+    def _open_auto_debug(self, idx: int):
+        if not hasattr(self.node, "_last_auto_decision"):
+            return
+
+        decision = self.node._last_auto_decision.get(idx)
+        if not decision:
+            return
+
+        weather = getattr(self.node, "_last_weather", {})
+        crop_id = self.node.pump_crop_map.get(idx)
+        crop = self.crop_registry.get(crop_id)
+
+        from dialogs.auto_debug_dialog import AutoDebugDialog
+        dlg = AutoDebugDialog(
+            self.node,
+            idx,
+            crop,
+            weather,
+            decision,
+            self
+        )
+        dlg.exec_()
