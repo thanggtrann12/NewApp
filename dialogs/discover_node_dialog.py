@@ -16,32 +16,32 @@ class DiscoveredNode:
 
 
 class DiscoverNodeDialog(QDialog):
-    nodeSelected = pyqtSignal(object)   # DiscoveredNode
+    nodeSelected = pyqtSignal(object)
 
     def __init__(self, parent=None, store=None):
         super().__init__(parent)
 
-        self.setWindowTitle("Discover Nodes")
+        self.setWindowTitle(self.tr("Discover Nodes"))
         self.setModal(True)
         self.resize(420, 360)
         self.store = store
         self._nodes: list[DiscoveredNode] = []
 
-        # ===== UI =====
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(8)
 
-        title = QLabel("Available Nodes")
+        title = QLabel(self.tr("Available Nodes"))
         layout.addWidget(title)
 
         self.list_widget = QListWidget()
         layout.addWidget(self.list_widget, 1)
 
         btns = QHBoxLayout()
-        self.refresh_btn = QPushButton("Refresh")
-        self.add_btn = QPushButton("Add")
-        self.close_btn = QPushButton("Close")
+        self.refresh_btn = QPushButton(self.tr("Refresh"))
+        self.add_btn = QPushButton(self.tr("Add"))
+        self.close_btn = QPushButton(self.tr("Close"))
+
 
         for b in (self.refresh_btn, self.add_btn, self.close_btn):
             b.setMinimumHeight(52)

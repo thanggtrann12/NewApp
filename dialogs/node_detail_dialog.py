@@ -11,31 +11,28 @@ from dialogs.crop_select_dialog import CropSelectDialog
 class NodeDetailDialog(QDialog):
     def __init__(self, node: Node, crop_registry, parent=None):
         super().__init__(parent)
+
         self.node = node
         self.crop_registry = crop_registry
-        if not hasattr(self.node, "pump_crop_map"):
-            self.node.pump_crop_map = {}
         self.crop_labels = {}
 
-        self.setWindowTitle("Node Configuration")
+        self.setWindowTitle(self.tr("Node Configuration"))
         self.setModal(True)
         self.resize(780, 500)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(12)
 
-        # ==================================================
-        # NODE INFO + NAME EDIT
-        # ==================================================
-        info_box = QGroupBox("Node Info")
+        # ===== NODE INFO =====
+        info_box = QGroupBox(self.tr("Node Info"))
         info_layout = QVBoxLayout(info_box)
 
         self.name_edit = QLineEdit(node.name)
-        self.name_edit.setPlaceholderText("Node name (e.g. Greenhouse A)")
-        self.name_edit.setMinimumHeight(36)
+        self.name_edit.setPlaceholderText(
+            self.tr("Node name (e.g. Greenhouse A)")
+        )
 
-        info_layout.addWidget(QLabel("Name:"))
+        info_layout.addWidget(QLabel(self.tr("Name:")))
+
         info_layout.addWidget(self.name_edit)
 
         info_layout.addWidget(
@@ -51,27 +48,25 @@ class NodeDetailDialog(QDialog):
         # ==================================================
         # PUMP → CROP CONFIG
         # ==================================================
-        group = QGroupBox("Pump → Crop Mapping")
+        group = QGroupBox(self.tr("Pump → Crop Mapping"))
         group_layout = QVBoxLayout(group)
 
         if node.pumps <= 0:
-            group_layout.addWidget(
-                QLabel("Node not connected. No pump info.")
-            )
+            group_layout.addWidget(QLabel(self.tr("Node not connected. No pump info.")))
         else:
             for i in range(node.pumps):
                 row = QHBoxLayout()
 
-                lbl = QLabel(f"Pump {i + 1}")
+                lbl = QLabel(self.tr("Pump {n}").format(n=i + 1))
 
                 crop_id = node.pump_crop_map.get(i)
                 crop = self.crop_registry.get(crop_id)
-                crop_name = crop.name if crop else "Not set"
+                crop_name = crop.name if crop else self.tr("Not set")
 
                 crop_lbl = QLabel(crop_name)
                 crop_lbl.setMinimumWidth(160)
 
-                btn = QPushButton("Select Crop")
+                btn = QPushButton(self.tr("Select Crop"))
                 btn.setMinimumHeight(36)
                 btn.clicked.connect(
                     lambda _, p=i: self.select_crop(p)
@@ -93,8 +88,8 @@ class NodeDetailDialog(QDialog):
         btns = QHBoxLayout()
         btns.addStretch(1)
 
-        close = QPushButton("Close")
-        save = QPushButton("Save")
+        close = QPushButton(self.tr("Close"))
+        save = QPushButton(self.tr("Save"))
         save.setObjectName("DetailButton")
         save.setMinimumHeight(40)
 

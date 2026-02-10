@@ -17,6 +17,7 @@ class NodeCard(QFrame):
         super().__init__(parent)
         self.node = node
         self.crop_registry = crop_registry
+
         # ===== ensure attrs =====
         self.node.pump_mode = getattr(self.node, "pump_mode", {})
         self.node.auto_type = getattr(self.node, "auto_type", {})
@@ -43,10 +44,10 @@ class NodeCard(QFrame):
 
         # ===== HEADER =====
         header = QHBoxLayout()
-        title = QLabel(self.node.name or "ESP Node")
+        title = QLabel(self.node.name or self.tr("ESP Node"))
         title.setObjectName("CardTitle")
 
-        close_btn = QPushButton("✕")
+        close_btn = QPushButton("✕")  # icon, không i18n
         close_btn.setObjectName("CloseButton")
         close_btn.setFixedSize(36, 36)
         close_btn.clicked.connect(
@@ -66,7 +67,7 @@ class NodeCard(QFrame):
         self._build_pump_list()
 
         # ===== FOOTER =====
-        detail_btn = QPushButton("DETAIL")
+        detail_btn = QPushButton(self.tr("DETAIL"))
         detail_btn.setObjectName("DetailButton")
         detail_btn.setFixedHeight(36)
         detail_btn.clicked.connect(
@@ -90,7 +91,9 @@ class NodeCard(QFrame):
 
         pumps = int(getattr(self.node, "pumps", 0))
         if pumps <= 0:
-            self.list_layout.addWidget(QLabel("No pumps connected"))
+            self.list_layout.addWidget(
+                QLabel(self.tr("No pumps connected"))
+            )
             return
 
         for i in range(pumps):
@@ -130,8 +133,8 @@ class NodeCard(QFrame):
             ctrl_lay.setContentsMargins(0, 0, 0, 0)
             ctrl_lay.setSpacing(8)
 
-            on_btn = QPushButton("ON")
-            off_btn = QPushButton("OFF")
+            on_btn = QPushButton(self.tr("ON"))
+            off_btn = QPushButton(self.tr("OFF"))
             on_btn.setObjectName("PumpOn")
             off_btn.setObjectName("PumpOff")
             on_btn.setFixedSize(64, 28)
@@ -187,28 +190,39 @@ class NodeCard(QFrame):
         crop_txt = f" {crop.name}" if crop else ""
 
         if pump_mode == "MANUAL":
-            pump_btn.setText(f"Pump {idx+1}{crop_txt} [MANUAL]")
+            pump_btn.setText(
+                self.tr("Pump {n} [MANUAL]{crop}")
+                .format(n=idx + 1, crop=crop_txt)
+            )
             ctrl.setVisible(True)
             info_main.setText(
-                "● RUNNING" if pump_state == "ON" else "● OFF"
+                self.tr("● RUNNING") if pump_state == "ON"
+                else self.tr("● OFF")
             )
             info_reason.setText("")
         else:
-            pump_btn.setText(f"Pump {idx+1}{crop_txt} [AUTO]")
+            pump_btn.setText(
+                self.tr("Pump {n} [AUTO]{crop}")
+                .format(n=idx + 1, crop=crop_txt)
+            )
             ctrl.setVisible(False)
 
             if auto_type == "TIMER" and schedules:
                 t, d, *_ = schedules[0]
                 info_main.setText(
-                    f"⏰ {t} ({d} min)"
+                    self.tr("⏰ {time} ({min} min)")
+                    .format(time=t, min=d)
                 )
                 info_reason.setText("")
             elif auto_type == "RECOMMEND" and next_sched:
                 t, d = next_sched
-                info_main.setText(f"🌦 {t} ({d} min)")
+                info_main.setText(
+                    self.tr("🌦 {time} ({min} min)")
+                    .format(time=t, min=d)
+                )
                 info_reason.setText(auto_reason or "")
             elif auto_reason:
-                info_main.setText("⛔ Skipped")
+                info_main.setText(self.tr("⛔ Skipped"))
                 info_reason.setText(auto_reason)
             else:
                 info_main.setText("-")

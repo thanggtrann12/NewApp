@@ -10,7 +10,7 @@ class AddNodeDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self.setWindowTitle("Add Node")
+        self.setWindowTitle(self.tr("Add Node"))
         self.setObjectName("Card")
         self.setModal(True)
 
@@ -25,17 +25,19 @@ class AddNodeDialog(QDialog):
         form.setLabelAlignment(Qt.AlignRight)
 
         self.name_edit = QLineEdit()
-        self.name_edit.setPlaceholderText("Optional (e.g. Greenhouse A)")
+        self.name_edit.setPlaceholderText(
+            self.tr("Optional (e.g. Greenhouse A)")
+        )
 
-        form.addRow("Name:", self.name_edit)
+        form.addRow(self.tr("Name:"), self.name_edit)
         layout.addLayout(form)
 
         # =========================
         # BUTTONS
         # =========================
         btns = QHBoxLayout()
-        cancel = QPushButton("Cancel")
-        ok = QPushButton("Add")
+        cancel = QPushButton(self.tr("Cancel"))
+        ok = QPushButton(self.tr("Add"))
         ok.setObjectName("DetailButton")
         ok.setDefault(True)
 

@@ -1,12 +1,12 @@
-# card_grid_fixed.py
 from typing import List
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout,
     QScrollArea, QScroller, QScrollerProperties
 )
-from .card import NodeCard
+from widgets.node_card import NodeCard
 from models.store import NodeStore
+
 
 class CardGrid(QWidget):
     """
@@ -60,7 +60,7 @@ class CardGrid(QWidget):
 
         # ===== TITLE =====
         from PyQt5.QtWidgets import QLabel, QPushButton
-        title = QLabel("IoT Irrigation System")
+        title = QLabel(self.tr("IoT Irrigation System"))
         title.setObjectName("AppTitle")
         root.addWidget(title)
 
@@ -85,7 +85,7 @@ class CardGrid(QWidget):
         self._setup_smooth_swipe()
 
         # ===== ADD NODE BUTTON =====
-        self.add_bar = QPushButton("+ ADD NODE")
+        self.add_bar = QPushButton(self.tr("+ ADD NODE"))
         self.add_bar.setObjectName("AddBar")
         self.add_bar.setFixedHeight(64)
         self.add_bar.clicked.connect(self.on_add_node)
@@ -114,10 +114,11 @@ class CardGrid(QWidget):
             self.cards.append(card)
             self.list_layout.addWidget(card)
             card._build_pump_list()
+
         self.list_layout.addStretch(1)
 
     # ======================================================
-    # ACTIONS (override trong MainWindow)
+    # ACTIONS
     # ======================================================
     def on_add_node(self):
         from dialogs.discover_node_dialog import DiscoverNodeDialog, DiscoveredNode
@@ -141,8 +142,8 @@ class CardGrid(QWidget):
         from PyQt5.QtWidgets import QMessageBox
         res = QMessageBox.question(
             self,
-            "Xóa Node",
-            "Bạn có chắc muốn xóa node này?",
+            self.tr("Remove Node"),
+            self.tr("Are you sure you want to remove this node?"),
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No
         )

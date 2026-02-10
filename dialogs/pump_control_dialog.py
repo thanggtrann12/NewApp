@@ -13,7 +13,7 @@ class PumpControlDialog(QDialog):
         self.node = node
         self.pump_idx = pump_idx
 
-        self.setWindowTitle(f"Pump {pump_idx + 1} Control")
+        self.setWindowTitle(self.tr("Pump {n} Control").format(n=pump_idx + 1))
         self.setModal(True)
         self.setMinimumWidth(340)
 
@@ -23,16 +23,16 @@ class PumpControlDialog(QDialog):
         root = QVBoxLayout(self)
         root.setSpacing(10)
 
-        title = QLabel(f"Pump {pump_idx + 1}")
+        title = QLabel(self.tr("Pump {n}").format(n=pump_idx + 1))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("font-size:14pt;font-weight:600;")
         root.addWidget(title)
 
-        root.addWidget(QLabel(f"Crop: {crop}"))
+        root.addWidget(QLabel(self.tr("Crop: {crop}").format(crop=crop)))
 
         # ================= MODE =================
-        self.manual_radio = QRadioButton("MANUAL")
-        self.auto_radio = QRadioButton("AUTO")
+        self.manual_radio = QRadioButton(self.tr("MANUAL"))
+        self.auto_radio = QRadioButton(self.tr("AUTO"))
 
         mode = getattr(node, "pump_mode", {}).get(pump_idx, "AUTO")
         self.manual_radio.setChecked(mode == "MANUAL")
@@ -42,11 +42,11 @@ class PumpControlDialog(QDialog):
         root.addWidget(self.auto_radio)
 
         # ================= AUTO TYPE =================
-        self.auto_box = QGroupBox("AUTO Mode")
+        self.auto_box = QGroupBox(self.tr("AUTO Mode"))
         auto_layout = QVBoxLayout(self.auto_box)
 
-        self.auto_rec_radio = QRadioButton("Recommended (by crop)")
-        self.auto_timer_radio = QRadioButton("Timer (set by you)")
+        self.auto_rec_radio = QRadioButton(self.tr("Recommended (by crop)"))
+        self.auto_timer_radio = QRadioButton(self.tr("Timer (set by you)"))
 
         auto_type = getattr(node, "auto_type", {}).get(
             pump_idx, "RECOMMEND"
@@ -88,8 +88,8 @@ class PumpControlDialog(QDialog):
             item.setData(Qt.UserRole, (t, d, days))   # ✅ Gán dữ liệu
 
         btn_row = QHBoxLayout()
-        add_timer_btn = QPushButton("Add Timer")
-        del_timer_btn = QPushButton("Remove")
+        add_timer_btn = QPushButton(self.tr("Add Timer"))
+        del_timer_btn = QPushButton(self.tr("Remove"))
         add_timer_btn.clicked.connect(self._add_timer)
         del_timer_btn.clicked.connect(self._remove_timer)
         btn_row.addWidget(add_timer_btn)
@@ -102,8 +102,8 @@ class PumpControlDialog(QDialog):
 
         # ================= FOOTER =================
         footer = QHBoxLayout()
-        save_btn = QPushButton("SAVE")
-        cancel_btn = QPushButton("CANCEL")
+        save_btn = QPushButton(self.tr("SAVE"))
+        cancel_btn = QPushButton(self.tr("CANCEL"))
         save_btn.clicked.connect(self.accept)
         cancel_btn.clicked.connect(self.reject)
         footer.addStretch(1)
@@ -123,20 +123,20 @@ class PumpControlDialog(QDialog):
 
     def _add_timer(self):
         dlg = QDialog(self)
-        dlg.setWindowTitle("Add Timer")
+        dlg.setWindowTitle(self.tr("Add Timer"))
 
         lay = QVBoxLayout(dlg)
         time_edit = QTimeEdit(QTime.currentTime())
         time_edit.setDisplayFormat("HH:mm")
-        lay.addWidget(QLabel("Start time"))
+        lay.addWidget(QLabel(self.tr("Start time")))
         lay.addWidget(time_edit)
 
         dur_edit = QTimeEdit(QTime(0, 10))
         dur_edit.setDisplayFormat("mm")
-        lay.addWidget(QLabel("Duration (min)"))
+        lay.addWidget(QLabel(self.tr("Duration (min)")))
         lay.addWidget(dur_edit)
 
-        days_box = QGroupBox("Repeat on")
+        days_box = QGroupBox(self.tr("Repeat on"))
         days_lay = QHBoxLayout(days_box)
         day_checks = []
         labels = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
@@ -148,7 +148,7 @@ class PumpControlDialog(QDialog):
 
         lay.addWidget(days_box)
 
-        ok = QPushButton("OK")
+        ok = QPushButton(self.tr("OK"))
         ok.clicked.connect(dlg.accept)
         lay.addWidget(ok)
 
