@@ -6,6 +6,8 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, QTime
 
+from models.schedule import PumpSchedule
+
 
 class PumpControlDialog(QDialog):
     def __init__(self, node, pump_idx: int, parent=None):
@@ -13,11 +15,14 @@ class PumpControlDialog(QDialog):
         self.node = node
         self.pump_idx = pump_idx
 
-        self.setWindowTitle(self.tr("Pump {n} Control").format(n=pump_idx + 1))
+        self.setWindowTitle(
+            self.tr("Pump {n} Control").format(n=pump_idx + 1)
+        )
         self.setModal(True)
-        self.setMinimumWidth(340)
+        self.setMinimumWidth(360)
 
-        crop = node.pump_crop_map.get(pump_idx, "Unknown")
+        crop_id = node.pump_crop_map.get(pump_idx)
+        crop = getattr(crop_id, "name", crop_id)
 
         # ================= ROOT =================
         root = QVBoxLayout(self)
@@ -28,7 +33,9 @@ class PumpControlDialog(QDialog):
         title.setStyleSheet("font-size:14pt;font-weight:600;")
         root.addWidget(title)
 
-        root.addWidget(QLabel(self.tr("Crop: {crop}").format(crop=crop)))
+        root.addWidget(
+            QLabel(self.tr("Crop: {crop}").format(crop=crop))
+        )
 
         # ================= MODE =================
         self.manual_radio = QRadioButton(self.tr("MANUAL"))
@@ -45,13 +52,16 @@ class PumpControlDialog(QDialog):
         self.auto_box = QGroupBox(self.tr("AUTO Mode"))
         auto_layout = QVBoxLayout(self.auto_box)
 
-        self.auto_rec_radio = QRadioButton(self.tr("Recommended (by crop)"))
-        self.auto_timer_radio = QRadioButton(self.tr("Timer (set by you)"))
+        self.auto_rec_radio = QRadioButton(
+            self.tr("Recommended (by crop)")
+        )
+        self.auto_timer_radio = QRadioButton(
+            self.tr("Timer (custom)")
+        )
 
         auto_type = getattr(node, "auto_type", {}).get(
             pump_idx, "RECOMMEND"
         )
-
         self.auto_rec_radio.setChecked(auto_type == "RECOMMEND")
         self.auto_timer_radio.setChecked(auto_type == "TIMER")
 
@@ -60,32 +70,32 @@ class PumpControlDialog(QDialog):
 
         # ================= TIMER UI =================
         self.timer_list = QListWidget()
-        self.timer_list.setFixedHeight(90)
+        self.timer_list.setFixedHeight(110)
 
-        # ===== BUILD SCHEDULES =====
+        DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
         schedules = getattr(node, "pump_schedule", {}).get(pump_idx, [])
 
-        DAY_NAMES = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
-
+        # ===== LOAD EXISTING SCHEDULES =====
         for sch in schedules:
-            if not isinstance(sch, dict):
+            if not isinstance(sch, PumpSchedule):
                 continue
 
-            t = sch.get("time")
-            d = sch.get("duration")
-            days = sch.get("meta", {}).get("days", [])
+            t = sch.time
+            d = sch.duration
+            days = sch.days or []
 
             if days:
-                day_txt = ",".join(
-                    DAY_NAMES[i] if isinstance(i, int) else str(i)
-                    for i in days
-                )
+                day_txt = ",".join(DAY_NAMES[i] for i in days)
                 text = f"{t} – {d} min · {day_txt}"
             else:
                 text = f"{t} – {d} min · Every day"
 
             item = QListWidgetItem(text, self.timer_list)
-            item.setData(Qt.UserRole, (t, d, days))   # ✅ Gán dữ liệu
+            item.setData(
+                Qt.UserRole,
+                PumpSchedule(time=t, duration=d, days=days)
+            )
 
         btn_row = QHBoxLayout()
         add_timer_btn = QPushButton(self.tr("Add Timer"))
@@ -119,13 +129,16 @@ class PumpControlDialog(QDialog):
     # ================= LOGIC =================
     def _update_visibility(self):
         self.auto_box.setVisible(self.auto_radio.isChecked())
-        self.timer_list.setEnabled(self.auto_timer_radio.isChecked())
+        self.timer_list.setEnabled(
+            self.auto_timer_radio.isChecked()
+        )
 
     def _add_timer(self):
         dlg = QDialog(self)
         dlg.setWindowTitle(self.tr("Add Timer"))
 
         lay = QVBoxLayout(dlg)
+
         time_edit = QTimeEdit(QTime.currentTime())
         time_edit.setDisplayFormat("HH:mm")
         lay.addWidget(QLabel(self.tr("Start time")))
@@ -139,7 +152,7 @@ class PumpControlDialog(QDialog):
         days_box = QGroupBox(self.tr("Repeat on"))
         days_lay = QHBoxLayout(days_box)
         day_checks = []
-        labels = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+        labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
         for i, lbl in enumerate(labels):
             cb = QCheckBox(lbl)
@@ -157,29 +170,36 @@ class PumpControlDialog(QDialog):
             d = dur_edit.time().minute()
             days = [i for i, cb in enumerate(day_checks) if cb.isChecked()]
 
+            sch = PumpSchedule(time=t, duration=d, days=days)
+
             label = f"{t} – {d} min"
             if days:
                 label += " · " + ",".join(labels[i] for i in days)
 
             item = QListWidgetItem(label, self.timer_list)
-            item.setData(Qt.UserRole, (t, d, days))   # ✅ Gán dữ liệu
+            item.setData(Qt.UserRole, sch)
 
     def _remove_timer(self):
         row = self.timer_list.currentRow()
         if row >= 0:
             self.timer_list.takeItem(row)
 
+    # ================= RESULT =================
     def result_data(self):
         mode = "MANUAL" if self.manual_radio.isChecked() else "AUTO"
-        auto_type = "TIMER" if self.auto_timer_radio.isChecked() else "RECOMMEND"
+        auto_type = (
+            "TIMER"
+            if self.auto_timer_radio.isChecked()
+            else "RECOMMEND"
+        )
 
         schedules = []
         for i in range(self.timer_list.count()):
             item = self.timer_list.item(i)
-            data = item.data(Qt.UserRole)
-            if data is not None:
-                t, d, days = data
-                schedules.append((t, d, days))
+            sch = item.data(Qt.UserRole)
+            if isinstance(sch, PumpSchedule):
+                schedules.append(sch)
+
         return {
             "mode": mode,
             "auto_type": auto_type,

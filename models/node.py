@@ -1,4 +1,6 @@
 import uuid
+from typing import Dict, List
+from models.schedule import PumpSchedule
 
 
 class Node:
@@ -9,15 +11,16 @@ class Node:
         self.pumps = 0
 
         # ===== CONFIG (SAVE) =====
-        self.pump_crop_map = {}
-        self.pump_mode = {}
-        self.auto_type = {}
-        self.pump_schedule = {}
+        self.pump_crop_map: Dict[int, str] = {}
+        self.pump_mode: Dict[int, str] = {}
+        self.auto_type: Dict[int, str] = {}
+        self.pump_schedule: Dict[int, List[PumpSchedule]] = {}
 
         # ===== RUNTIME (NOT SAVE) =====
         self.pump_state = {}
         self.next_schedule = {}
         self.auto_running = {}
+        self.auto_reason = {}
 
     @staticmethod
     def new(name="ESP Node"):
@@ -25,6 +28,7 @@ class Node:
         n.name = name
         return n
 
+    # ==================================================
     def to_dict(self) -> dict:
         return {
             "id": self.id,
@@ -34,9 +38,19 @@ class Node:
             "pump_crop_map": {str(k): v for k, v in self.pump_crop_map.items()},
             "pump_mode": {str(k): v for k, v in self.pump_mode.items()},
             "auto_type": {str(k): v for k, v in self.auto_type.items()},
-            "pump_schedule": {str(k): v for k, v in self.pump_schedule.items()},
+            "pump_schedule": {
+                str(k): [
+                    {
+                        "time": s.time,
+                        "duration": s.duration,
+                        "meta": {"days": s.days}
+                    } for s in schedules
+                ]
+                for k, schedules in self.pump_schedule.items()
+            }
         }
 
+    # ==================================================
     @staticmethod
     def from_dict(d: dict):
         n = Node()
@@ -56,28 +70,17 @@ class Node:
 
         return n
 
+    # ==================================================
     @staticmethod
-    def _normalize_schedule(schedules):
-        """
-        Always return list[dict]
-        """
-        out = []
-        for sch in schedules:
-            # already dict
+    def _normalize_schedule(raw) -> List[PumpSchedule]:
+        schedules = []
+        for sch in raw:
             if isinstance(sch, dict):
-                out.append({
-                    "time": sch.get("time"),
-                    "duration": sch.get("duration"),
-                    "meta": sch.get("meta", {})
-                })
-
-            # old list/tuple format
-            elif isinstance(sch, (list, tuple)):
-                out.append({
-                    "time": sch[0],
-                    "duration": sch[1],
-                    "meta": {
-                        "days": sch[2] if len(sch) > 2 else []
-                    }
-                })
-        return out
+                schedules.append(
+                    PumpSchedule(
+                        time=sch.get("time"),
+                        duration=int(sch.get("duration", 0)),
+                        days=sch.get("meta", {}).get("days", [])
+                    )
+                )
+        return schedules

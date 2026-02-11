@@ -18,7 +18,7 @@ class NodeDetailDialog(QDialog):
 
         self.setWindowTitle(self.tr("Node Configuration"))
         self.setModal(True)
-        self.resize(780, 500)
+        self.resize(780, 550)
 
         layout = QVBoxLayout(self)
 

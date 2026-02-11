@@ -1,0 +1,11 @@
+{
+  "auto_timer": {
+    "tick_sec": 30
+  },
+  "auto_recommend": {
+    "enabled": true
+  },
+  "dev": {
+    "log_level": "INFO"
+  }
+}

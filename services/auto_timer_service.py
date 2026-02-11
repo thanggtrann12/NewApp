@@ -1,7 +1,7 @@
-# services/auto_timer_service.py
 import threading
 import time
 from datetime import datetime, timedelta
+from PyQt5.QtCore import QTimer
 
 
 class AutoTimerService(threading.Thread):
@@ -12,94 +12,114 @@ class AutoTimerService(threading.Thread):
         self.tick_sec = tick_sec
         self.running = True
 
+        print(
+            f"[AutoTimer] init tick_sec={tick_sec}s"
+        )
+
+    # ==================================================
     def run(self):
-        print("[AUTO] AutoTimerService started")
+        print("[AutoTimer] thread started")
+
         while self.running:
             try:
                 self.tick()
             except Exception as e:
-                print("[AUTO] error:", e)
+                print(f"[AutoTimer][ERROR] tick failed: {e}")
+
             time.sleep(self.tick_sec)
 
+        print("[AutoTimer] thread stopped")
+
+    # ==================================================
     def tick(self):
         now = datetime.now()
-        print(f"[AUTO TICK] {now.strftime('%H:%M:%S')}")
+        print(
+            f"[AutoTimer] tick @ {now.strftime('%H:%M:%S')}"
+        )
 
         for node in self.store.list():
+            node_id = getattr(node, "id", "?")
+            print(f"[AutoTimer] check node={node_id}")
+
             for idx, schedules in node.pump_schedule.items():
                 print(
-                    f"[AUTO CHECK] node={node.name} "
-                    f"pump={idx+1} "
+                    f"  ├─ pump {idx+1} "
                     f"mode={node.pump_mode.get(idx)} "
-                    f"type={node.auto_type.get(idx)} "
-                    f"sched={schedules}"
+                    f"type={node.auto_type.get(idx)}"
                 )
 
                 if node.pump_mode.get(idx) != "AUTO":
-                    print(f"[AUTO SKIP] pump={idx+1} reason=MODE")
+                    print("  │  skip: not AUTO")
                     continue
 
                 if node.auto_type.get(idx) != "TIMER":
-                    print(f"[AUTO SKIP] pump={idx+1} reason=TYPE")
+                    print("  │  skip: not TIMER")
                     continue
 
                 running = node.auto_running.get(idx)
                 if running:
-                    if now >= running["until"]:
-                        self._stop_pump(node, idx)
-                    else:
+                    until = running.get("until")
+                    print(
+                        f"  │  running until "
+                        f"{until.strftime('%H:%M:%S')}"
+                    )
+
+                    if now >= until:
                         print(
-                            f"[AUTO RUNNING] pump={idx+1} "
-                            f"until={running['until'].strftime('%H:%M:%S')}"
+                            f"  │  stop pump {idx+1}"
                         )
+                        self._stop(node, idx)
                     continue
 
                 for sch in schedules:
-                    time_str = sch[0]
-                    duration = int(sch[1])
-
-                    print(
-                        f"[AUTO TIME] pump={idx+1} "
-                        f"now={now.strftime('%H:%M:%S')} "
-                        f"target={time_str}"
-                    )
-
-                    t = datetime.strptime(time_str, "%H:%M").replace(
+                    t = datetime.strptime(
+                        sch.time, "%H:%M"
+                    ).replace(
                         year=now.year,
                         month=now.month,
                         day=now.day
                     )
 
-                    if abs((now - t).total_seconds()) <= self.tick_sec:
+                    diff = abs(
+                        (now - t).total_seconds()
+                    )
+
+                    print(
+                        f"  │  check schedule "
+                        f"{sch.time} ({sch.duration}m) "
+                        f"Δ={int(diff)}s"
+                    )
+
+                    if diff <= self.tick_sec:
                         print(
-                            f"[AUTO FIRE] node={node.name} "
-                            f"pump={idx+1} "
-                            f"time={time_str} dur={duration}min"
+                            f"  │  START pump {idx+1} "
+                            f"for {sch.duration} min"
                         )
-                        self._start_pump(
-                            node, idx, time_str, duration
-                        )
+                        self._start(node, idx, sch)
                         break
 
     # ==================================================
-    def _start_pump(self, node, idx, time_str, dur):
-        until = datetime.now() + timedelta(minutes=dur)
-
-        node.auto_running[idx] = {
-            "until": until,
-            "reason": f"TIMER {time_str}"
-        }
-
-        node.next_schedule[idx] = (time_str, dur)
-
-        self.bus.send_auto_command(node.id, idx, dur)
-
-    def _stop_pump(self, node, idx):
-        print(
-            f"[AUTO STOP] node={node.name} "
-            f"pump={idx+1}"
+    def _start(self, node, idx, sch):
+        until = datetime.now() + timedelta(
+            minutes=sch.duration
         )
 
-        self.bus.send_manual_command(node.id, idx, "OFF")
+        node.auto_running[idx] = {"until": until}
+        node.next_schedule[idx] = (sch.time, sch.duration)
+
+        print(
+            f"[AutoTimer] ▶ START "
+            f"node={node.id} pump={idx+1} "
+            f"until={until.strftime('%H:%M:%S')}"
+        )
+        self.bus.send_auto(node, idx, sch.duration)
+
+    # ==================================================
+    def _stop(self, node, idx):
+        print(
+            f"[AutoTimer] ■ STOP "
+            f"node={node.id} pump={idx+1}"
+        )
+        self.bus.send_manual(node, idx, "OFF")
         node.auto_running.pop(idx, None)
         node.next_schedule.pop(idx, None)

@@ -66,7 +66,7 @@ class DiscoverNodeDialog(QDialog):
     # ==================================================
     def bind_bus(self, bus):
         self.bus = bus
-        bus.nodeSnapshot.connect(self.update_from_snapshot)
+        bus.node_list.connect(self.update_from_snapshot)
 
     def update_from_snapshot(self, nodes: list):
         self._nodes = nodes

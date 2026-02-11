@@ -1,19 +1,18 @@
-import random
+from datetime import datetime, timedelta
 
 
 class AutoIrrigationEngine:
     """
-    Crop + Weather based AUTO irrigation engine
-
-    - Stateless
+    Enterprise-grade AUTO irrigation engine
+    - Deterministic
     - Explainable
-    - Safe
+    - Cooldown + daily quota aware
     """
 
     DEFAULT_TIME = "18:00"
-
-    MAX_SINGLE_RUN = 15
-    MIN_SINGLE_RUN = 3
+    MIN_RUN = 3
+    MAX_RUN = 15
+    COOLDOWN_HOURS = 6
 
     def __init__(self, crop_registry):
         self.crops = crop_registry
@@ -21,75 +20,108 @@ class AutoIrrigationEngine:
     # ==================================================
     def compute(self, node, weather: dict) -> dict:
         decisions = {}
+        now = datetime.now()
 
         for idx in range(node.pumps):
             if node.pump_mode.get(idx) != "AUTO":
                 continue
 
             crop_id = node.pump_crop_map.get(idx)
-            decisions[idx] = self._decide_for_pump(
-                crop_id, weather
+            decisions[idx] = self._decide(
+                node, idx, crop_id, weather, now
             )
 
         return decisions
 
     # ==================================================
-    def _decide_for_pump(self, crop_id: str | None, weather: dict) -> dict:
-        # ❌ No crop
+    def _decide(self, node, idx, crop_id, weather, now):
+        # ----- sanity -----
         if not crop_id:
-            return {
-                "action": "SKIP",
-                "reason": "No crop set"
-            }
+            return self._skip("no crop")
 
         crop = self.crops.get(crop_id)
         if not crop:
-            return {
-                "action": "SKIP",
-                "reason": "Unknown crop"
-            }
+            return self._skip("unknown crop")
 
+        # ----- cooldown -----
+        last = node.__dict__.get("_last_run_at", {}).get(idx)
+        if last and now - last < timedelta(hours=self.COOLDOWN_HOURS):
+            remain = self.COOLDOWN_HOURS - int(
+                (now - last).total_seconds() / 3600
+            )
+            return self._skip(
+                f"cooldown {remain}h remaining"
+            )
+
+        # ----- weather gate -----
         rain_prob = weather.get("rain_prob", 0)
         rain_mm = weather.get("rain_mm", 0)
+
+        if rain_prob >= 60:
+            return self._skip(
+                f"rain_prob={rain_prob}% ≥ 60%"
+            )
+
+        if rain_mm >= 3:
+            return self._skip(
+                f"rain_mm={rain_mm}mm ≥ 3mm"
+            )
+
+        # ----- daily quota -----
+        today = now.date()
+        used = node.__dict__.get("_daily_used", {}).get((idx, today), 0)
+        quota = crop.water.get("max_minutes", 15)
+
+        if used >= quota:
+            return self._skip(
+                f"daily quota reached ({used}/{quota} min)"
+            )
+
+        # ----- duration calc -----
+        base = (
+            crop.water.get("min_minutes", 5) +
+            crop.water.get("max_minutes", 15)
+        ) // 2
+
         temp = weather.get("temp_max", 25)
         humidity = weather.get("humidity", 50)
 
-        # 🌧️ HARD RAIN OVERRIDE
-        if rain_prob >= 60 or rain_mm >= 3:
-            return {
-                "action": "SKIP",
-                "reason": f"Rain expected ({rain_prob}%)"
-            }
+        reason = [f"crop={crop.name}"]
 
-        w = crop.water
-
-        # 🌱 BASE FROM CROP (CORE)
-        base = random.randint(
-            w["min_minutes"],
-            w["max_minutes"]
-        )
-        reason = f"By crop: {crop.name}"
-
-        # 🔥 TEMP ADJUST
         if temp >= 35:
             base += 2
-            reason += f", hot ({temp}°C)"
+            reason.append(f"hot({temp}°C)")
         elif temp <= 22:
             base -= 1
-            reason += f", cool ({temp}°C)"
+            reason.append(f"cool({temp}°C)")
 
-        # 💧 HUMIDITY ADJUST
         if humidity >= 85:
-            base -= 2
-            reason += ", humid"
+            base -= 1
+            reason.append(f"humid({humidity}%)")
 
-        # 🔒 SAFETY CLAMP
-        duration = max(self.MIN_SINGLE_RUN, base)
-        duration = min(self.MAX_SINGLE_RUN, duration)
+        duration = max(self.MIN_RUN, min(self.MAX_RUN, base))
 
         return {
             "action": "RUN",
             "time": self.DEFAULT_TIME,
             "duration": duration,
+            "reason": ", ".join(reason)
+        }
+
+    # ==================================================
+    def record_run(self, node, idx, duration):
+        now = datetime.now()
+        node.__dict__.setdefault("_last_run_at", {})[idx] = now
+
+        key = (idx, now.date())
+        node.__dict__.setdefault("_daily_used", {})
+        node.__dict__["_daily_used"][key] = (
+            node.__dict__["_daily_used"].get(key, 0) + duration
+        )
+
+    # ==================================================
+    def _skip(self, reason):
+        return {
+            "action": "SKIP",
             "reason": reason
         }

@@ -51,8 +51,7 @@ class CardGrid(QWidget):
         self.bus = bus
         self.crop_registry = crop_registry
         self.cards: List[NodeCard] = []
-        self.bus.pumpStateChanged.connect(self.on_pump_state)
-
+        self.bus.pump_state.connect(self.on_pump_event)
         # ===== ROOT =====
         root = QVBoxLayout(self)
         root.setContentsMargins(12, 12, 12, 12)
@@ -105,8 +104,7 @@ class CardGrid(QWidget):
         self.cards.clear()
 
         for node in self.store.list():
-            card = NodeCard(node, self.crop_registry)
-            card.pumpCommand.connect(self.on_pump_command)
+            card = NodeCard(node, self.crop_registry, self.bus)
             card.configChanged.connect(self.on_node_config_changed)
             card.removeRequested.connect(self.on_remove_node)
             card.detailRequested.connect(self.on_detail_node)
@@ -162,16 +160,19 @@ class CardGrid(QWidget):
             self.store.save()
             self.rebuild()
 
-    def on_pump_state(self, node_id, pump_idx, state, next_sched):
-        for card in self.cards:
-            if card.node.id == node_id:
-                card.update_from_device(pump_idx, state, next_sched)
-                break
-
     def on_pump_command(self, node_id: str, pump_idx: int, cmd: str):
         print(f"[UI → BUS] Node={node_id} Pump={pump_idx+1} CMD={cmd}")
-        self.bus.send_manual_command(node_id, pump_idx, cmd)
+        self.bus.send_manual(node_id, pump_idx, cmd)
 
     def on_node_config_changed(self, node_id: str):
         print(f"[STORE] save config node={node_id}")
         self.store.save()
+
+    def on_pump_event(self, evt):
+        for card in self.cards:
+            if card.node.id == evt.node_id:
+                card.update_from_device(
+                    evt.pump_idx,
+                    evt.state,
+                    evt.next_schedule
+                )

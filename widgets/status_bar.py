@@ -28,7 +28,7 @@ class StatusBar(QWidget):
 
         # 🌐 language toggle button (flag)
         self.lang_btn = QPushButton()
-        self.lang_btn.setFixedSize(42, 32)
+        self.lang_btn.setFixedSize(62, 32)
         self.lang_btn.setFocusPolicy(Qt.NoFocus)
         self.lang_btn.clicked.connect(self._toggle_language)
 
@@ -59,10 +59,10 @@ class StatusBar(QWidget):
 
     def _update_lang_icon(self):
         if self.lang_service.current_lang() == "vi":
-            self.lang_btn.setText("🇻🇳")
+            self.lang_btn.setText("VN")
             self.lang_btn.setToolTip("Tiếng Việt")
         else:
-            self.lang_btn.setText("🇺🇸")
+            self.lang_btn.setText("US")
             self.lang_btn.setToolTip("English")
 
     # ===============================
