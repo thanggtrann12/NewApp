@@ -8,10 +8,11 @@ from datetime import datetime
 
 
 class StatusBar(QWidget):
-    def __init__(self, store, bus, lang_service, parent=None):
+    def __init__(self, store, bus, lang_service, main_window, parent=None):
         super().__init__(parent)
         self.store = store
         self.bus = bus
+        self.main_window = main_window
         self.lang_service = lang_service
 
         # ===============================
@@ -55,7 +56,7 @@ class StatusBar(QWidget):
     def _toggle_language(self):
         self.lang_service.toggle()
         self._update_lang_icon()
-        self.window().rebuild_ui()
+        self.main_window.rebuild_ui()
 
     def _update_lang_icon(self):
         if self.lang_service.current_lang() == "vi":

@@ -39,14 +39,22 @@ def load_stylesheet(app, path: str):
 # APP VIEW = NODES PAGE
 # ==============================
 class AppView(QWidget):
-    def __init__(self, store, bus, crop_registry, lang_service, parent=None):
+    def __init__(self, store, bus, crop_registry,
+                 lang_service, main_window, parent=None):
         super().__init__(parent)
 
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(0)
 
-        self.status = StatusBar(store, bus, lang_service, self)
+        # 🔥 PASS MAIN WINDOW EXPLICITLY
+        self.status = StatusBar(
+            store,
+            bus,
+            lang_service,
+            main_window=main_window,
+            parent=self
+        )
         self.grid = CardGrid(store, bus, crop_registry, self)
 
         lay.addWidget(self.status)
@@ -68,9 +76,9 @@ class MainWindow(QWidget):
         self.history = history
         self.settings = settings
 
-        root = QVBoxLayout(self)
-        root.setContentsMargins(0, 0, 0, 0)
-        root.setSpacing(0)
+        self.root = QVBoxLayout(self)
+        self.root.setContentsMargins(0, 0, 0, 0)
+        self.root.setSpacing(0)
 
         # ================= NAV BAR =================
         nav = QHBoxLayout()
@@ -86,33 +94,52 @@ class MainWindow(QWidget):
         nav.addWidget(btn_settings)
         nav.addStretch(1)
 
-        root.addLayout(nav)
+        self.root.addLayout(nav)
 
         # ================= STACK =================
         self.stack = QStackedWidget(self)
+        self.root.addWidget(self.stack, 1)
+
+        # build pages
+        self._build_pages()
+
+        # ================= NAV ACTIONS =================
+        btn_nodes.clicked.connect(lambda: self.stack.setCurrentIndex(0))
+        btn_history.clicked.connect(lambda: self.stack.setCurrentIndex(1))
+        btn_settings.clicked.connect(lambda: self.stack.setCurrentIndex(2))
+
+    # ==================================================
+    # BUILD / REBUILD UI (LANG CHANGE)
+    # ==================================================
+    def _build_pages(self):
+        # clear stack
+        while self.stack.count():
+            w = self.stack.widget(0)
+            self.stack.removeWidget(w)
+            w.deleteLater()
 
         self.nodes_page = AppView(
-            store, bus, crop_registry, lang_service, self
+            self.store,
+            self.bus,
+            self.crop_registry,
+            self.lang_service,
+            main_window=self,
+            parent=self
         )
-        self.history_page = HistoryPage(history, self)
-        self.settings_page = SettingsPage(settings, self)
+        self.history_page = HistoryPage(self.history, self)
+        self.settings_page = SettingsPage(self.settings, self)
 
         self.stack.addWidget(self.nodes_page)     # index 0
         self.stack.addWidget(self.history_page)   # index 1
         self.stack.addWidget(self.settings_page)  # index 2
 
-        root.addWidget(self.stack, 1)
-
-        # ================= NAV ACTIONS =================
-        btn_nodes.clicked.connect(
-            lambda: self.stack.setCurrentIndex(0)
-        )
-        btn_history.clicked.connect(
-            lambda: self.stack.setCurrentIndex(1)
-        )
-        btn_settings.clicked.connect(
-            lambda: self.stack.setCurrentIndex(2)
-        )
+    def rebuild_ui(self):
+        """
+        Gọi khi đổi language hoặc cần rebuild toàn bộ UI.
+        """
+        current = self.stack.currentIndex()
+        self._build_pages()
+        self.stack.setCurrentIndex(current)
 
 
 # ==============================
@@ -121,9 +148,10 @@ class MainWindow(QWidget):
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     load_stylesheet(app, 'assets/style.qss')
+
+    # ===== SERVICES =====
     history = HistoryService()
     settings = SettingsService()
-    # ===== CORE SERVICES =====
     crop_registry = CropRegistry()
     store = NodeStore('data/nodes.json')
 
@@ -146,9 +174,6 @@ if __name__ == '__main__':
     # ===== LANGUAGE =====
     lang_service = LanguageService(app)
     lang_service.load("vi")
-
-    # ===== HISTORY + SETTINGS =====
-
 
     # ===== WINDOW =====
     win = MainWindow(
