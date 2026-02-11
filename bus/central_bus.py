@@ -29,18 +29,17 @@ class CentralBus(QObject):
     # ==================================================
     # COMMAND API (ONLY ENTRY)
     # ==================================================
-    def send_manual(self, node, pump_idx, cmd: str):
-        print("CEN_BUS->TRANS: MANUAL")
+    def send_manual(self, node_id: str, pump_idx: int, cmd: str):
+        self.transport.send_manual(node_id, pump_idx, cmd)
+
         if self.history:
             self.history.add(
-                node_id=node.id,
+                node_id=node_id,
                 pump_idx=pump_idx,
                 action="START" if cmd == "ON" else "STOP",
                 source="MANUAL",
                 duration=None
             )
-        if self.transport:
-            self.transport.send_manual(node, pump_idx, cmd)
 
     def send_auto(self, node, pump_idx, duration: int):
         print("CEN_BUS->TRANS: AUTO")
@@ -58,3 +57,8 @@ class CentralBus(QObject):
     def request_node_list(self):
         if self.transport:
             self.transport.get_node_list()
+
+    def send_add_node(self, mac: str):
+        if self.transport:
+            print(f"[BUS] CONFIRM NODE mac={mac}")
+            self.transport.send_add_node(mac)

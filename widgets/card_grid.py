@@ -133,7 +133,7 @@ class CardGrid(QWidget):
 
         dlg.nodeSelected.connect(on_selected)
         dlg.bind_bus(self.bus)
-        self.bus.get_node_list()
+        self.bus.request_node_list()
         dlg.exec_()
 
     def on_remove_node(self, node_id: str):

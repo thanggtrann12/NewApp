@@ -59,3 +59,6 @@ class NodeStore:
 
         if len(self.nodes) != before:
             self.save()
+
+    def has_mac(self, mac: str) -> bool:
+        return any(n.mac == mac for n in self.nodes)

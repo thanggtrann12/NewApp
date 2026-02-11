@@ -73,7 +73,9 @@ class DiscoverNodeDialog(QDialog):
         self.list_widget.clear()
 
         for n in nodes:
-            item = QListWidgetItem(n.display_text())
+            text = f"{n.uid or 'ESP Node'}  ({n.mac})  · {n.pumps} pumps"
+            item = QListWidgetItem(text)
+            item.setData(Qt.UserRole, n)
             if self.store.has_mac(n.mac):
                 print(f"[DISCOVER] skipping existing node {n.mac}")
                 item.setFlags(item.flags() & ~Qt.ItemIsEnabled)
@@ -90,13 +92,14 @@ class DiscoverNodeDialog(QDialog):
     def on_refresh(self):
         self.list_widget.clear()
         self.add_btn.setEnabled(False)
-        self.bus.get_node_list()
+        self.bus.request_node_list()
 
     def on_add(self):
         item = self.list_widget.currentItem()
         if not item:
             return
-        self.nodeSelected.emit(item.data(Qt.UserRole))
+        dn = item.data(Qt.UserRole)
+        self.nodeSelected.emit(dn)
         self.bus.send_add_node(item.data(Qt.UserRole).mac)
         self.accept()
 
