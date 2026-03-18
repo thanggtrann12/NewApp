@@ -14,6 +14,14 @@ class SettingsService(QObject):
             "enabled": True,
             "startup_delay_sec": 10
         },
+        "debug": {
+            "enabled": False,
+            "auto_timer": False,
+            "auto_decision": False,
+            "bus": False,
+            "serial": False,
+            "weather": False
+        },
         "dev": {
             "log_level": "INFO"
         }

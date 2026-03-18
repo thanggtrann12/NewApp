@@ -2,12 +2,13 @@
 import sys
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout,
-    QHBoxLayout, QPushButton, QStackedWidget
+    QHBoxLayout, QPushButton, QStackedWidget, QButtonGroup
 )
 from PyQt5.QtCore import QFile, QTextStream
 
 from models.store import NodeStore
-from widgets.card_grid import CardGrid
+from models.zone_store import ZoneStore
+from widgets.zone_grid import ZoneGrid
 from widgets.status_bar import StatusBar
 from widgets.history import HistoryService, HistoryPage
 from widgets.settings import SettingsPage
@@ -20,7 +21,6 @@ from utils.global_event_filter import GlobalKeyboardEventFilter
 from services.auto_service import AutoService
 from services.auto_timer_service import AutoTimerService
 from services.crop_registry import CropRegistry
-from services.language_service import LanguageService
 from services.settings_service import SettingsService
 
 
@@ -39,8 +39,15 @@ def load_stylesheet(app, path: str):
 # APP VIEW = NODES PAGE
 # ==============================
 class AppView(QWidget):
-    def __init__(self, store, bus, crop_registry,
-                 lang_service, main_window, parent=None):
+    def __init__(
+        self,
+        node_store,
+        zone_store,
+        bus,
+        crop_registry,
+        main_window,
+        parent=None,
+    ):
         super().__init__(parent)
 
         lay = QVBoxLayout(self)
@@ -49,13 +56,18 @@ class AppView(QWidget):
 
         # 🔥 PASS MAIN WINDOW EXPLICITLY
         self.status = StatusBar(
-            store,
+            node_store,
             bus,
-            lang_service,
             main_window=main_window,
             parent=self
         )
-        self.grid = CardGrid(store, bus, crop_registry, self)
+        self.grid = ZoneGrid(
+            zone_store,
+            node_store,
+            bus,
+            crop_registry,
+            self,
+        )
 
         lay.addWidget(self.status)
         lay.addWidget(self.grid)
@@ -65,14 +77,15 @@ class AppView(QWidget):
 # MAIN WINDOW
 # ==============================
 class MainWindow(QWidget):
-    def __init__(self, store, bus, crop_registry, lang_service,
+    def __init__(self, node_store, zone_store, bus, crop_registry,
                  history, settings):
         super().__init__()
+        self.setObjectName("MainWindow")
 
-        self.store = store
+        self.node_store = node_store
+        self.zone_store = zone_store
         self.bus = bus
         self.crop_registry = crop_registry
-        self.lang_service = lang_service
         self.history = history
         self.settings = settings
 
@@ -81,20 +94,33 @@ class MainWindow(QWidget):
         self.root.setSpacing(0)
 
         # ================= NAV BAR =================
-        nav = QHBoxLayout()
+        nav_host = QWidget(self)
+        nav_host.setObjectName("MainTabs")
+        nav = QHBoxLayout(nav_host)
         nav.setContentsMargins(8, 8, 8, 8)
         nav.setSpacing(8)
 
-        btn_nodes = QPushButton(self.tr("Nodes"))
-        btn_history = QPushButton(self.tr("History"))
-        btn_settings = QPushButton(self.tr("Settings"))
+        self.nav_group = QButtonGroup(self)
+        self.nav_group.setExclusive(True)
 
-        nav.addWidget(btn_nodes)
-        nav.addWidget(btn_history)
-        nav.addWidget(btn_settings)
+        self.btn_nodes = QPushButton(self.tr("Khu tưới"))
+        self.btn_history = QPushButton(self.tr("Lịch sử"))
+        self.btn_settings = QPushButton(self.tr("Cài đặt"))
+
+        for idx, btn in enumerate((
+            self.btn_nodes,
+            self.btn_history,
+            self.btn_settings,
+        )):
+            btn.setProperty("navTab", "true")
+            btn.setCheckable(True)
+            self.nav_group.addButton(btn, idx)
+            btn.clicked.connect(lambda _, i=idx: self._set_current_page(i))
+            nav.addWidget(btn)
+
         nav.addStretch(1)
 
-        self.root.addLayout(nav)
+        self.root.addWidget(nav_host)
 
         # ================= STACK =================
         self.stack = QStackedWidget(self)
@@ -103,10 +129,17 @@ class MainWindow(QWidget):
         # build pages
         self._build_pages()
 
-        # ================= NAV ACTIONS =================
-        btn_nodes.clicked.connect(lambda: self.stack.setCurrentIndex(0))
-        btn_history.clicked.connect(lambda: self.stack.setCurrentIndex(1))
-        btn_settings.clicked.connect(lambda: self.stack.setCurrentIndex(2))
+        self.stack.currentChanged.connect(self._sync_nav_state)
+        self._set_current_page(0)
+
+    def _set_current_page(self, index: int):
+        self.stack.setCurrentIndex(index)
+        self._sync_nav_state(index)
+
+    def _sync_nav_state(self, index: int):
+        btn = self.nav_group.button(index)
+        if btn and not btn.isChecked():
+            btn.setChecked(True)
 
     # ==================================================
     # BUILD / REBUILD UI (LANG CHANGE)
@@ -119,10 +152,10 @@ class MainWindow(QWidget):
             w.deleteLater()
 
         self.nodes_page = AppView(
-            self.store,
+            self.node_store,
+            self.zone_store,
             self.bus,
             self.crop_registry,
-            self.lang_service,
             main_window=self,
             parent=self
         )
@@ -135,11 +168,12 @@ class MainWindow(QWidget):
 
     def rebuild_ui(self):
         """
-        Gọi khi đổi language hoặc cần rebuild toàn bộ UI.
+        Gọi khi cần dựng lại toàn bộ giao diện.
         """
         current = self.stack.currentIndex()
         self._build_pages()
         self.stack.setCurrentIndex(current)
+        self._sync_nav_state(current)
 
 
 # ==============================
@@ -153,17 +187,60 @@ if __name__ == '__main__':
     history = HistoryService()
     settings = SettingsService()
     crop_registry = CropRegistry()
-    store = NodeStore('data/nodes.json')
+    node_store = NodeStore('data/nodes.json')
+    zone_store = ZoneStore('data/zones.json')
 
     bus = CentralBus(history)
-    transport = SerialTransport(store)
+    transport = SerialTransport(node_store)
     bus.bind_transport(transport)
     transport.start()
 
-    auto_service = AutoService(store, bus, crop_registry)
-    auto_service.run()
+    # ===== FIREBASE (optional) =====
+    firebase_transport = None
+    import os as _os, json as _json
+    _fb_cfg = "data/firebase_config.json"
+    if _os.path.exists(_fb_cfg):
+        try:
+            from transport.firebase_transport import FirebaseTransport
+            with open(_fb_cfg, encoding="utf-8") as _f:
+                _fc = _json.load(_f)
 
-    auto_timer = AutoTimerService(store, bus)
+            _credential = _fc["credential"]
+            if not _os.path.isabs(_credential):
+                _credential = _os.path.normpath(
+                    _os.path.join(_os.path.dirname(_fb_cfg), _credential)
+                )
+            if not _os.path.exists(_credential):
+                raise FileNotFoundError(
+                    f"credential not found: {_credential}"
+                )
+
+            firebase_transport = FirebaseTransport(
+                store=node_store,
+                bus=bus,
+                credential_path=_credential,
+                database_url=_fc["database_url"],
+                zone_store=zone_store,
+                crop_registry=crop_registry,
+            )
+            started = firebase_transport.start()
+            if started:
+                print("[FIREBASE] transport started")
+            else:
+                print("[FIREBASE] transport not started")
+        except Exception as _e:
+            print(f"[FIREBASE] failed to start: {_e}")
+
+    auto_service = AutoService(
+        node_store,
+        bus,
+        crop_registry,
+        zone_store=zone_store,
+    )
+    # Startup should only calculate schedule preview, not trigger watering.
+    auto_service.run(dispatch_commands=False)
+
+    auto_timer = AutoTimerService(node_store, bus)
     auto_timer.start()
 
     # ===== INPUT =====
@@ -171,16 +248,12 @@ if __name__ == '__main__':
     gef = GlobalKeyboardEventFilter(keyboard)
     app.installEventFilter(gef)
 
-    # ===== LANGUAGE =====
-    lang_service = LanguageService(app)
-    lang_service.load("vi")
-
     # ===== WINDOW =====
     win = MainWindow(
-        store,
+        node_store,
+        zone_store,
         bus,
         crop_registry,
-        lang_service,
         history,
         settings
     )

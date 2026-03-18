@@ -43,3 +43,10 @@ Thumbs.db
 # Logs
 # ===============================
 *.log
+
+# ===============================
+# Firebase secrets / local config
+# ===============================
+data/firebase_config.json
+*firebase-adminsdk*.json
+data/watering-automation.json

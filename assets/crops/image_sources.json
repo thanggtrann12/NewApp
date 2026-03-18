@@ -1,0 +1,170 @@
+﻿[
+    {
+        "id":  "tomato",
+        "name":  "Tomato",
+        "title":  "Tomato",
+        "image_url":  "https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Tomato_je.jpg/960px-Tomato_je.jpg",
+        "local_path":  "assets/crops/tomato.jpg"
+    },
+    {
+        "id":  "cucumber",
+        "name":  "Cucumber",
+        "title":  "Cucumber",
+        "image_url":  "https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/ARS_cucumber.jpg/960px-ARS_cucumber.jpg",
+        "local_path":  "assets/crops/cucumber.jpg"
+    },
+    {
+        "id":  "eggplant",
+        "name":  "Eggplant",
+        "title":  "Eggplant",
+        "image_url":  "https://upload.wikimedia.org/wikipedia/commons/thumb/7/76/Solanum_melongena_24_08_2012_%281%29.JPG/960px-Solanum_melongena_24_08_2012_%281%29.JPG",
+        "local_path":  "assets/crops/eggplant.jpg"
+    },
+    {
+        "id":  "okra",
+        "name":  "Okra",
+        "title":  "Okra",
+        "image_url":  "https://upload.wikimedia.org/wikipedia/commons/thumb/9/95/Hong_Kong_Okra_Aug_25_2012.JPG/960px-Hong_Kong_Okra_Aug_25_2012.JPG",
+        "local_path":  "assets/crops/okra.jpg"
+    },
+    {
+        "id":  "bitter_melon",
+        "name":  "Bitter Melon",
+        "title":  "Momordica charantia",
+        "image_url":  "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Momordica_charantia_Blanco2.357.png/960px-Momordica_charantia_Blanco2.357.png",
+        "local_path":  "assets/crops/bitter_melon.jpg"
+    },
+    {
+        "id":  "pumpkin",
+        "name":  "Pumpkin",
+        "title":  "Pumpkin",
+        "image_url":  "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/FrenchMarketPumpkinsB.jpg/960px-FrenchMarketPumpkinsB.jpg",
+        "local_path":  "assets/crops/pumpkin.jpg"
+    },
+    {
+        "id":  "lettuce",
+        "name":  "Lettuce",
+        "title":  "Lettuce",
+        "image_url":  "",
+        "local_path":  "assets/crops/lettuce.jpg"
+    },
+    {
+        "id":  "water_spinach",
+        "name":  "Rau Muong",
+        "title":  "Rau Muong",
+        "image_url":  "",
+        "local_path":  "assets/crops/water_spinach.jpg"
+    },
+    {
+        "id":  "mustard_greens",
+        "name":  "Cai Xanh",
+        "title":  "Cai Xanh",
+        "image_url":  "",
+        "local_path":  "assets/crops/mustard_greens.jpg"
+    },
+    {
+        "id":  "bok_choy",
+        "name":  "Cai Thia",
+        "title":  "Cai Thia",
+        "image_url":  "",
+        "local_path":  "assets/crops/bok_choy.jpg"
+    },
+    {
+        "id":  "amaranth",
+        "name":  "Rau Den",
+        "title":  "Rau Den",
+        "image_url":  "",
+        "local_path":  "assets/crops/amaranth.jpg"
+    },
+    {
+        "id":  "malabar_spinach",
+        "name":  "Mong Toi",
+        "title":  "Basella alba",
+        "image_url":  "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Basella_alba-2.JPG/960px-Basella_alba-2.JPG",
+        "local_path":  "assets/crops/malabar_spinach.jpg"
+    },
+    {
+        "id":  "morning_glory_choy",
+        "name":  "Cai Ngot",
+        "title":  "Cai Ngot",
+        "image_url":  "",
+        "local_path":  "assets/crops/morning_glory_choy.jpg"
+    },
+    {
+        "id":  "chili",
+        "name":  "Chili",
+        "title":  "Chili",
+        "image_url":  "",
+        "local_path":  "assets/crops/chili.jpg"
+    },
+    {
+        "id":  "bell_pepper",
+        "name":  "Bell Pepper",
+        "title":  "Bell pepper",
+        "image_url":  "https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Green-Yellow-Red-Pepper-2009.jpg/960px-Green-Yellow-Red-Pepper-2009.jpg",
+        "local_path":  "assets/crops/bell_pepper.jpg"
+    },
+    {
+        "id":  "scallion",
+        "name":  "Hanh La",
+        "title":  "Hanh La",
+        "image_url":  "",
+        "local_path":  "assets/crops/scallion.jpg"
+    },
+    {
+        "id":  "coriander",
+        "name":  "Ngo Ri",
+        "title":  "Ngo Ri",
+        "image_url":  "",
+        "local_path":  "assets/crops/coriander.jpg"
+    },
+    {
+        "id":  "culantro",
+        "name":  "Ngo Gai",
+        "title":  "Ngo Gai",
+        "image_url":  "",
+        "local_path":  "assets/crops/culantro.jpg"
+    },
+    {
+        "id":  "thai_basil",
+        "name":  "Hung Que",
+        "title":  "Thai basil",
+        "image_url":  "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1f/Thai_basil.jpg/500px-Thai_basil.jpg",
+        "local_path":  "assets/crops/thai_basil.jpg"
+    },
+    {
+        "id":  "vietnamese_mint",
+        "name":  "Rau Ram",
+        "title":  "Rau Ram",
+        "image_url":  "",
+        "local_path":  "assets/crops/vietnamese_mint.jpg"
+    },
+    {
+        "id":  "mint",
+        "name":  "Mint",
+        "title":  "Mint",
+        "image_url":  "",
+        "local_path":  "assets/crops/mint.jpg"
+    },
+    {
+        "id":  "strawberry",
+        "name":  "Strawberry",
+        "title":  "Strawberry",
+        "image_url":  "",
+        "local_path":  "assets/crops/strawberry.jpg"
+    },
+    {
+        "id":  "long_bean",
+        "name":  "Yardlong Bean",
+        "title":  "Yardlong Bean",
+        "image_url":  "",
+        "local_path":  "assets/crops/long_bean.jpg"
+    },
+    {
+        "id":  "sweet_potato_leaf",
+        "name":  "Rau Lang",
+        "title":  "Rau Lang",
+        "image_url":  "",
+        "local_path":  "assets/crops/sweet_potato_leaf.jpg"
+    }
+]

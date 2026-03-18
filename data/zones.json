@@ -1,0 +1,10 @@
+[
+  {
+    "id": "dbbf75e3-35a6-4697-a3ea-3a1b2d8be5ae",
+    "name": "ASD",
+    "sensor_node_id": "900091a5-06ec-4d73-a604-f0dcd5f5a54f",
+    "pump_node_id": "c72325ec-87ff-4a51-b58c-cd800e2dd9c6",
+    "sensor_indices": [],
+    "pump_idx": 1
+  }
+]

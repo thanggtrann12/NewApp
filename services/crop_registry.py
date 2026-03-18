@@ -3,7 +3,8 @@ from models.crop import Crop
 
 class CropRegistry:
     def __init__(self, path="data/crops.json"):
-        with open(path, "r", encoding="utf-8") as f:
+        # Accept both UTF-8 and UTF-8 BOM encoded JSON files.
+        with open(path, "r", encoding="utf-8-sig") as f:
             self._crops = {
                 c["id"]: Crop(**c)
                 for c in json.load(f)

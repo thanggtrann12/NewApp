@@ -1,32 +1,266 @@
-[
-  {
-    "id": "tomato",
-    "name": "Tomato",
-    "image": "assets/crops/tomato.png",
-    "water": {
-      "min_minutes": 6,
-      "max_minutes": 8,
-      "times_per_day": 1
+﻿[
+    {
+        "id":  "tomato",
+        "name":  "Cà chua",
+        "image":  "assets/crops/tomato.jpg",
+        "water":  {
+                    "min_minutes":  6,
+                    "max_minutes":  8,
+                    "times_per_day":  1,
+                    "base_time":  "06:30"
+                }
+    },
+    {
+        "id":  "cucumber",
+        "name":  "Dưa leo",
+        "image":  "assets/crops/cucumber.jpg",
+        "water":  {
+                    "min_minutes":  6,
+                    "max_minutes":  9,
+                    "times_per_day":  1,
+                    "base_time":  "06:10"
+                }
+    },
+    {
+        "id":  "eggplant",
+        "name":  "Cà tím",
+        "image":  "assets/crops/eggplant.jpg",
+        "water":  {
+                    "min_minutes":  6,
+                    "max_minutes":  9,
+                    "times_per_day":  1,
+                    "base_time":  "06:20"
+                }
+    },
+    {
+        "id":  "okra",
+        "name":  "Đậu bắp",
+        "image":  "assets/crops/okra.jpg",
+        "water":  {
+                    "min_minutes":  5,
+                    "max_minutes":  8,
+                    "times_per_day":  1,
+                    "base_time":  "06:15"
+                }
+    },
+    {
+        "id":  "bitter_melon",
+        "name":  "Khổ qua",
+        "image":  "assets/crops/bitter_melon.jpg",
+        "water":  {
+                    "min_minutes":  6,
+                    "max_minutes":  9,
+                    "times_per_day":  1,
+                    "base_time":  "06:05"
+                }
+    },
+    {
+        "id":  "pumpkin",
+        "name":  "Bí đỏ",
+        "image":  "assets/crops/pumpkin.jpg",
+        "water":  {
+                    "min_minutes":  7,
+                    "max_minutes":  10,
+                    "times_per_day":  1,
+                    "base_time":  "05:50"
+                }
+    },
+    {
+        "id":  "lettuce",
+        "name":  "Xà lách",
+        "image":  "assets/crops/lettuce.jpg",
+        "water":  {
+                    "min_minutes":  4,
+                    "max_minutes":  6,
+                    "times_per_day":  1,
+                    "base_time":  "06:00"
+                }
+    },
+    {
+        "id":  "water_spinach",
+        "name":  "Rau muống",
+        "image":  "assets/crops/water_spinach.jpg",
+        "water":  {
+                    "min_minutes":  5,
+                    "max_minutes":  8,
+                    "times_per_day":  2,
+                    "base_time":  "05:40"
+                }
+    },
+    {
+        "id":  "mustard_greens",
+        "name":  "Cải xanh",
+        "image":  "assets/crops/mustard_greens.jpg",
+        "water":  {
+                    "min_minutes":  5,
+                    "max_minutes":  7,
+                    "times_per_day":  1,
+                    "base_time":  "06:00"
+                }
+    },
+    {
+        "id":  "bok_choy",
+        "name":  "Cải thìa",
+        "image":  "assets/crops/bok_choy.jpg",
+        "water":  {
+                    "min_minutes":  5,
+                    "max_minutes":  7,
+                    "times_per_day":  1,
+                    "base_time":  "06:05"
+                }
+    },
+    {
+        "id":  "amaranth",
+        "name":  "Rau dền",
+        "image":  "assets/crops/amaranth.jpg",
+        "water":  {
+                    "min_minutes":  4,
+                    "max_minutes":  7,
+                    "times_per_day":  1,
+                    "base_time":  "06:10"
+                }
+    },
+    {
+        "id":  "malabar_spinach",
+        "name":  "Mồng tơi",
+        "image":  "assets/crops/malabar_spinach.jpg",
+        "water":  {
+                    "min_minutes":  5,
+                    "max_minutes":  8,
+                    "times_per_day":  2,
+                    "base_time":  "05:50"
+                }
+    },
+    {
+        "id":  "morning_glory_choy",
+        "name":  "Cải ngọt",
+        "image":  "assets/crops/morning_glory_choy.jpg",
+        "water":  {
+                    "min_minutes":  4,
+                    "max_minutes":  7,
+                    "times_per_day":  1,
+                    "base_time":  "06:20"
+                }
+    },
+    {
+        "id":  "chili",
+        "name":  "Ớt",
+        "image":  "assets/crops/chili.jpg",
+        "water":  {
+                    "min_minutes":  5,
+                    "max_minutes":  7,
+                    "times_per_day":  1,
+                    "base_time":  "06:45"
+                }
+    },
+    {
+        "id":  "bell_pepper",
+        "name":  "Ớt chuông",
+        "image":  "assets/crops/bell_pepper.jpg",
+        "water":  {
+                    "min_minutes":  5,
+                    "max_minutes":  8,
+                    "times_per_day":  1,
+                    "base_time":  "06:30"
+                }
+    },
+    {
+        "id":  "scallion",
+        "name":  "Hành lá",
+        "image":  "assets/crops/scallion.jpg",
+        "water":  {
+                    "min_minutes":  3,
+                    "max_minutes":  5,
+                    "times_per_day":  1,
+                    "base_time":  "06:40"
+                }
+    },
+    {
+        "id":  "coriander",
+        "name":  "Ngò rí",
+        "image":  "assets/crops/coriander.jpg",
+        "water":  {
+                    "min_minutes":  3,
+                    "max_minutes":  5,
+                    "times_per_day":  1,
+                    "base_time":  "06:35"
+                }
+    },
+    {
+        "id":  "culantro",
+        "name":  "Ngò gai",
+        "image":  "assets/crops/culantro.jpg",
+        "water":  {
+                    "min_minutes":  3,
+                    "max_minutes":  5,
+                    "times_per_day":  1,
+                    "base_time":  "06:30"
+                }
+    },
+    {
+        "id":  "thai_basil",
+        "name":  "Húng quế",
+        "image":  "assets/crops/thai_basil.jpg",
+        "water":  {
+                    "min_minutes":  4,
+                    "max_minutes":  6,
+                    "times_per_day":  1,
+                    "base_time":  "06:25"
+                }
+    },
+    {
+        "id":  "vietnamese_mint",
+        "name":  "Rau răm",
+        "image":  "assets/crops/vietnamese_mint.jpg",
+        "water":  {
+                    "min_minutes":  4,
+                    "max_minutes":  6,
+                    "times_per_day":  1,
+                    "base_time":  "06:20"
+                }
+    },
+    {
+        "id":  "mint",
+        "name":  "Bạc hà",
+        "image":  "assets/crops/mint.jpg",
+        "water":  {
+                    "min_minutes":  4,
+                    "max_minutes":  6,
+                    "times_per_day":  1,
+                    "base_time":  "06:15"
+                }
+    },
+    {
+        "id":  "strawberry",
+        "name":  "Dâu tây",
+        "image":  "assets/crops/strawberry.jpg",
+        "water": {
+                    "min_minutes":  4,
+                    "max_minutes":  6,
+                    "times_per_day":  1,
+                    "base_time":  "06:50"
+                }
+    },
+    {
+        "id":  "long_bean",
+        "name":  "Đậu đũa",
+        "image":  "assets/crops/long_bean.jpg",
+        "water":{
+                    "min_minutes":  5,
+                    "max_minutes":  8,
+                    "times_per_day":  1,
+                    "base_time":  "06:00"
+                }
+    },
+    {
+        "id":  "sweet_potato_leaf",
+        "name":  "Lá khoai lang",
+        "image":  "assets/crops/sweet_potato_leaf.jpg",
+        "water":{
+                    "min_minutes":  4,
+                    "max_minutes":  7,
+                    "times_per_day":  1,
+                    "base_time":  "06:10"
+                }
     }
-  },
-  {
-    "id": "lettuce",
-    "name": "Lettuce",
-    "image": "assets/crops/lettuce.png",
-    "water": {
-      "min_minutes": 4,
-      "max_minutes": 6,
-      "times_per_day": 1
-    }
-  },
-  {
-    "id": "chili",
-    "name": "Chili",
-    "image": "assets/crops/chili.png",
-    "water": {
-      "min_minutes": 5,
-      "max_minutes": 7,
-      "times_per_day": 1
-    }
-  }
 ]

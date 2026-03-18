@@ -1,7 +1,7 @@
 import serial
 import threading
 import time
-from bus.events import PumpStateEvent, NodeDiscoveredEvent
+from bus.events import PumpStateEvent, NodeDiscoveredEvent, SensorDataEvent
 
 
 class SerialTransport(threading.Thread):
@@ -10,7 +10,7 @@ class SerialTransport(threading.Thread):
     NO business logic
     """
 
-    def __init__(self, store, port="/dev/serial0", baud=115200):
+    def __init__(self, store, port="COM9", baud=115200):
         super().__init__(daemon=True)
         self.store = store
         self.port = port
@@ -79,6 +79,10 @@ class SerialTransport(threading.Thread):
                     if self.bus:
                         self.bus.gateway_online.emit(True)
 
+                    # Fetch latest node identity snapshot (uid/name, mac, pumps)
+                    # so UI can display real names from firmware.
+                    self.get_node_list()
+
                     while self.running:
                         line = ser.readline().decode(
                             errors="ignore"
@@ -114,6 +118,12 @@ class SerialTransport(threading.Thread):
             print("[BUS] STATE SYNCED")
             return
 
+        # ===== LIVE SENSOR EVENT (always parse) =====
+        # Handle SENSOR even during STATE snapshot so sensor stream is never dropped.
+        if line.startswith("SENSOR "):
+            self._handle_sensor_line(line)
+            return
+
         if self._parsing_state:
             self._parse_state_line(line)
             return
@@ -126,6 +136,7 @@ class SerialTransport(threading.Thread):
 
         if line == "NODE_LIST_END":
             self._snapshot_active = False
+            self._sync_nodes_from_snapshot(list(self._temp_nodes.values()))
             if self.bus:
                 self.bus.node_list.emit(
                     list(self._temp_nodes.values())
@@ -148,12 +159,13 @@ class SerialTransport(threading.Thread):
 
                 for idx in range(node.pumps):
                     if self.bus:
-                        self.bus.pump_state.emit(
-                            node.id,
-                            idx,
-                            "OFF",
-                            None
+                        evt = PumpStateEvent(
+                            node_id=node.id,
+                            pump_idx=idx,
+                            state="OFF",
+                            next_schedule=None
                         )
+                        self.bus.pump_state.emit(evt)
 
             if self.bus:
                 self.bus.is_synced = False
@@ -163,17 +175,109 @@ class SerialTransport(threading.Thread):
         if line.startswith("PUMP "):
             parts = self._parse_kv(line.replace("PUMP ", ""))
             mac = parts.get("mac", "").lower()
-            node = self.store.get_by_mac(mac)
-            if not node:
+            nodes = self.store.list_by_mac(mac)
+            if not nodes:
                 return
 
-            evt = PumpStateEvent(
-                node_id=node.id,
-                pump_idx=int(parts.get("idx", 0)),
-                state=parts.get("state", "OFF"),
-                next_schedule=None
+            if len(nodes) > 1:
+                print(f"[SERIAL] duplicate mac={mac} -> fanout {len(nodes)} nodes")
+
+            pump_idx = int(parts.get("idx", 0))
+            state = parts.get("state", "OFF")
+            serial_name = self._extract_serial_name(parts)
+            for node in nodes:
+                if serial_name:
+                    node.name = serial_name
+                evt = PumpStateEvent(
+                    node_id=node.id,
+                    pump_idx=pump_idx,
+                    state=state,
+                    next_schedule=None
+                )
+                self.bus.pump_state.emit(evt)
+            return
+
+    def _handle_sensor_line(self, line: str):
+        # Legacy protocol:
+        #   SENSOR mac=AA:BB:CC idx=0 type=moisture val=72.5
+        # New packed protocol:
+        #   SENSOR mac=AA:BB:CC moisture=72 temp=27.50 humidity=61.00
+        parts = self._parse_kv(line.replace("SENSOR ", ""))
+        mac_raw = parts.get("mac", "")
+        if not mac_raw:
+            return
+
+        nodes = self.store.list_by_mac(mac_raw)
+        if not nodes:
+            print(f"[SERIAL] SENSOR ignored: unknown mac={mac_raw}")
+            return
+
+        if len(nodes) > 1:
+            print(f"[SERIAL] duplicate mac={mac_raw} -> fanout {len(nodes)} nodes")
+
+        idx = self._safe_int(parts.get("idx", 0), 0)
+        node_type = self._extract_node_type(parts)
+        serial_name = self._sanitize_name_for_type(
+            self._extract_serial_name(parts),
+            node_type,
+        )
+        readings = {}
+
+        if "type" in parts and "val" in parts:
+            # Backward compatibility with old line-per-sensor format.
+            stype = self._normalize_sensor_key(parts.get("type", ""))
+            val = self._safe_float(parts.get("val"))
+            if stype and val is not None:
+                readings[stype] = val
+        else:
+            # New packed format from firmware.
+            moisture = self._safe_float(parts.get("moisture"))
+            temperature = self._safe_float(
+                parts.get("temperature", parts.get("temp"))
             )
-            self.bus.pump_state.emit(evt)
+            humidity = self._safe_float(
+                parts.get("humidity", parts.get("humi"))
+            )
+
+            if moisture is not None:
+                readings["moisture"] = moisture
+            if temperature is not None:
+                readings["temperature"] = temperature
+            if humidity is not None:
+                readings["humidity"] = humidity
+
+        if not readings:
+            return
+
+        identity_changed = False
+        for node in nodes:
+            can_apply_identity = self._node_type_compatible(
+                node,
+                node_type,
+            )
+
+            if can_apply_identity and serial_name and node.name != serial_name:
+                node.name = serial_name
+                identity_changed = True
+
+            if can_apply_identity and node_type and node.node_type != node_type:
+                node.node_type = node_type
+                identity_changed = True
+
+            if idx not in node.sensor_readings:
+                node.sensor_readings[idx] = {}
+            node.sensor_readings[idx].update(readings)
+
+            if self.bus:
+                evt = SensorDataEvent(
+                    node_id=node.id,
+                    pump_idx=idx,
+                    readings=dict(node.sensor_readings[idx])
+                )
+                self.bus.sensor_data.emit(evt)
+
+        if identity_changed:
+            self.store.save()
 
     # ==================================================
     def _parse_state_line(self, line: str):
@@ -182,12 +286,15 @@ class SerialTransport(threading.Thread):
             parts = self._parse_kv(line.replace("NODE ", ""))
             mac = parts.get("mac", "").lower()
             pumps = int(parts.get("pumps", 0))
+            serial_name = self._extract_serial_name(parts)
 
             node = self.store.get_by_mac(mac)
             if not node:
                 return
 
             node.pumps = pumps
+            if serial_name:
+                node.name = serial_name
             node.pump_state = {}
             self._current_node = node
             return
@@ -201,12 +308,13 @@ class SerialTransport(threading.Thread):
             self._current_node.pump_state[idx] = state
 
             if self.bus:
-                self.bus.pump_state.emit(
-                    self._current_node.id,
-                    idx,
-                    state,
-                    None
+                evt = PumpStateEvent(
+                    node_id=self._current_node.id,
+                    pump_idx=idx,
+                    state=state,
+                    next_schedule=None
                 )
+                self.bus.pump_state.emit(evt)
 
     # ==================================================
     def _parse_kv(self, text: str) -> dict:
@@ -217,18 +325,157 @@ class SerialTransport(threading.Thread):
                 data[k] = v
         return data
 
+    @staticmethod
+    def _safe_int(value, default=0):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
+
+    @staticmethod
+    def _safe_float(value):
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _normalize_sensor_key(key: str) -> str:
+        k = (key or "").strip().lower()
+        if k in ("moisture", "soil", "soil_moisture"):
+            return "moisture"
+        if k in ("temperature", "temp"):
+            return "temperature"
+        if k in ("humidity", "humi"):
+            return "humidity"
+        return ""
+
     # ==================================================
     def _parse_node_item(self, line: str):
         body = line[len("NODE_ITEM:"):]
         data = {}
 
-        for p in body.split(";"):
-            if "=" in p:
-                k, v = p.split("=", 1)
-                data[k] = v
+        if ";" in body:
+            for p in body.split(";"):
+                if "=" in p:
+                    k, v = p.split("=", 1)
+                    data[k.strip()] = v.strip()
+        else:
+            data = self._parse_kv(body)
+
+        uid = (
+            data.get("uid")
+            or data.get("name")
+            or data.get("node")
+            or "ESP Node"
+        )
+
+        node_type = self._extract_node_type(data)
+        pumps = int(data.get("pumps", 0) or 0)
+        if not node_type:
+            node_type = "pump_node" if pumps > 0 else "sensor_node"
 
         return NodeDiscoveredEvent(
-            uid=data.get("uid", "ESP Node"),
+            uid=uid,
             mac=data.get("mac", ""),
-            pumps=int(data.get("pumps", 0))
+            pumps=pumps,
+            node_type=node_type,
         )
+
+    def _sync_nodes_from_snapshot(self, discovered_nodes: list):
+        changed = False
+
+        for dn in discovered_nodes:
+            nodes = self.store.list_by_mac(getattr(dn, "mac", ""))
+            if not nodes:
+                continue
+
+            pumps = int(getattr(dn, "pumps", 0) or 0)
+            node_type = self._normalize_node_type(
+                getattr(dn, "node_type", "")
+            )
+            name = self._sanitize_name_for_type(
+                (getattr(dn, "uid", "") or "").strip(),
+                node_type,
+            )
+
+            for node in nodes:
+                can_apply_identity = self._node_type_compatible(
+                    node,
+                    node_type,
+                )
+
+                if can_apply_identity and name and node.name != name:
+                    node.name = name
+                    changed = True
+                if pumps > 0 and node.pumps != pumps:
+                    node.pumps = pumps
+                    changed = True
+                if can_apply_identity and node_type and node.node_type != node_type:
+                    node.node_type = node_type
+                    changed = True
+
+        if changed:
+            self.store.save()
+
+    @staticmethod
+    def _extract_serial_name(parts: dict) -> str:
+        name = (
+            (parts or {}).get("uid")
+            or (parts or {}).get("name")
+            or (parts or {}).get("node")
+            or ""
+        )
+        return str(name).strip()
+
+    @classmethod
+    def _extract_node_type(cls, parts: dict) -> str:
+        raw = (
+            (parts or {}).get("node_type")
+            or (parts or {}).get("device_type")
+            or (parts or {}).get("role")
+            or (parts or {}).get("kind")
+            or (parts or {}).get("type")
+            or ""
+        )
+        return cls._normalize_node_type(raw)
+
+    @staticmethod
+    def _normalize_node_type(value: str) -> str:
+        v = (value or "").strip().lower()
+        if v in ("sensor_node", "sensor", "sensornode"):
+            return "sensor_node"
+        if v in (
+            "pump_node",
+            "pump",
+            "pumpnode",
+            "relay_node",
+            "actuator_node",
+        ):
+            return "pump_node"
+        return ""
+
+    @classmethod
+    def _node_type_compatible(cls, node, incoming_type: str) -> bool:
+        incoming = cls._normalize_node_type(incoming_type)
+        if not incoming:
+            return True
+        current = cls._normalize_node_type(
+            getattr(node, "node_type", "")
+        )
+        if not current:
+            return True
+        return current == incoming
+
+    @classmethod
+    def _sanitize_name_for_type(cls, name: str, node_type: str) -> str:
+        text = str(name or "").strip()
+        if not text:
+            return ""
+        kind = cls._normalize_node_type(node_type)
+        lower = text.lower()
+        if kind == "pump_node" and lower.startswith("sensor"):
+            return ""
+        if kind == "sensor_node" and lower.startswith("pump"):
+            return ""
+        return text

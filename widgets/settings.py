@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import (
     QLabel, QGroupBox, QCheckBox,
     QPushButton, QMessageBox
 )
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import QTimer
 
 # Nếu bạn đã có NetworkService thì import
 # Nếu chưa có, comment dòng này và xem NOTE bên dưới
@@ -32,28 +32,28 @@ class SettingsPage(QWidget):
         root.setContentsMargins(16, 16, 16, 16)
         root.setSpacing(16)
 
-        title = QLabel(self.tr("Settings"))
+        title = QLabel(self.tr("Cài đặt"))
         title.setObjectName("AppTitle")
         root.addWidget(title)
 
         # ==================================================
         # DEBUG SECTION
         # ==================================================
-        debug_box = QGroupBox(self.tr("DEBUG · Log Filter"))
+        debug_box = QGroupBox(self.tr("GỠ LỖI · Lọc log"))
         debug_lay = QVBoxLayout(debug_box)
         debug_lay.setSpacing(8)
 
-        self.chk_debug_enable = QCheckBox(self.tr("Enable Debug Mode"))
+        self.chk_debug_enable = QCheckBox(self.tr("Bật chế độ gỡ lỗi"))
         self.chk_debug_enable.setChecked(
             self.settings.data.get("debug", {}).get("enabled", False)
         )
         debug_lay.addWidget(self.chk_debug_enable)
 
-        self.chk_auto_timer = QCheckBox("AutoTimer")
-        self.chk_auto_decision = QCheckBox("Auto Decision")
-        self.chk_bus = QCheckBox("Central Bus")
-        self.chk_serial = QCheckBox("Serial")
-        self.chk_weather = QCheckBox("Weather")
+        self.chk_auto_timer = QCheckBox("Bộ hẹn giờ tự động")
+        self.chk_auto_decision = QCheckBox("Quyết định tự động")
+        self.chk_bus = QCheckBox("Bus trung tâm")
+        self.chk_serial = QCheckBox("Kết nối Serial")
+        self.chk_weather = QCheckBox("Thời tiết")
 
         dbg = self.settings.data.get("debug", {})
         self.chk_auto_timer.setChecked(dbg.get("auto_timer", False))
@@ -73,14 +73,14 @@ class SettingsPage(QWidget):
         # ==================================================
         # WIFI SECTION (MASTER ONLY)
         # ==================================================
-        wifi_box = QGroupBox(self.tr("WIFI · Master"))
+        wifi_box = QGroupBox(self.tr("WIFI · Bộ điều khiển"))
         wifi_lay = QVBoxLayout(wifi_box)
         wifi_lay.setSpacing(6)
 
         self.lbl_wifi_ssid = QLabel("SSID: -")
         self.lbl_wifi_ip = QLabel("IP: -")
-        self.lbl_wifi_signal = QLabel("Signal: -")
-        self.lbl_wifi_status = QLabel("Status: Unknown")
+        self.lbl_wifi_signal = QLabel("Tín hiệu: -")
+        self.lbl_wifi_status = QLabel("Trạng thái: Chưa xác định")
 
         wifi_lay.addWidget(self.lbl_wifi_ssid)
         wifi_lay.addWidget(self.lbl_wifi_ip)
@@ -88,9 +88,9 @@ class SettingsPage(QWidget):
         wifi_lay.addWidget(self.lbl_wifi_status)
 
         pwd_row = QHBoxLayout()
-        pwd_row.addWidget(QLabel("Password: ********"))
+        pwd_row.addWidget(QLabel("Mật khẩu: ********"))
         pwd_row.addStretch(1)
-        self.btn_change_wifi = QPushButton(self.tr("Change Wi-Fi"))
+        self.btn_change_wifi = QPushButton(self.tr("Đổi Wi-Fi"))
         pwd_row.addWidget(self.btn_change_wifi)
         wifi_lay.addLayout(pwd_row)
 
@@ -102,7 +102,7 @@ class SettingsPage(QWidget):
         btn_row = QHBoxLayout()
         btn_row.addStretch(1)
 
-        btn_apply = QPushButton(self.tr("Apply"))
+        btn_apply = QPushButton(self.tr("Áp dụng"))
         btn_apply.clicked.connect(self._apply)
 
         btn_row.addWidget(btn_apply)
@@ -119,7 +119,7 @@ class SettingsPage(QWidget):
             self.timer.timeout.connect(self._update_wifi_status)
             self.timer.start(5000)  # refresh mỗi 5s
         else:
-            self.lbl_wifi_status.setText("Status: NetworkService not available")
+            self.lbl_wifi_status.setText("Trạng thái: Chưa có NetworkService")
 
         self.btn_change_wifi.clicked.connect(self._change_wifi)
 
@@ -142,8 +142,8 @@ class SettingsPage(QWidget):
 
         QMessageBox.information(
             self,
-            self.tr("Settings"),
-            self.tr("Settings applied successfully.")
+            self.tr("Cài đặt"),
+            self.tr("Áp dụng cài đặt thành công.")
         )
 
     # ==================================================
@@ -156,7 +156,7 @@ class SettingsPage(QWidget):
         st = self.net.get_status()
 
         if not st:
-            self.lbl_wifi_status.setText("Status: Unknown")
+            self.lbl_wifi_status.setText("Trạng thái: Chưa xác định")
             return
 
         ssid = st.get("ssid", "-")
@@ -166,13 +166,13 @@ class SettingsPage(QWidget):
 
         self.lbl_wifi_ssid.setText(f"SSID: {ssid}")
         self.lbl_wifi_ip.setText(f"IP: {ip}")
-        self.lbl_wifi_signal.setText(f"Signal: {signal}")
+        self.lbl_wifi_signal.setText(f"Tín hiệu: {signal}")
 
         if connected:
-            self.lbl_wifi_status.setText("Status: Connected")
+            self.lbl_wifi_status.setText("Trạng thái: Đã kết nối")
             self.lbl_wifi_status.setStyleSheet("color:#4CAF50;")
         else:
-            self.lbl_wifi_status.setText("Status: Disconnected")
+            self.lbl_wifi_status.setText("Trạng thái: Mất kết nối")
             self.lbl_wifi_status.setStyleSheet("color:#E57373;")
 
     def _change_wifi(self):

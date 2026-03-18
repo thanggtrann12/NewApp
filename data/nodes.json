@@ -1,55 +1,37 @@
 [
   {
-    "id": "6ecbc34c-4cf5-431c-846a-36b22675e3c3",
-    "mac": "48:55:19:e4:b2:ce",
-    "name": "ESP Node",
-    "pumps": 4,
-    "pump_crop_map": {
-      "0": "tomato",
-      "1": "lettuce",
-      "2": "lettuce",
-      "3": "lettuce"
-    },
-    "pump_mode": {
-      "0": "MANUAL",
-      "1": "AUTO",
-      "2": "AUTO",
-      "3": "MANUAL"
-    },
-    "auto_type": {
-      "0": "RECOMMEND",
-      "1": "RECOMMEND",
-      "2": "TIMER",
-      "3": "RECOMMEND"
-    },
-    "pump_schedule": {
-      "0": [],
-      "1": [
-        {
-          "time": "22:39",
-          "duration": 4,
-          "meta": {
-            "days": []
-          }
-        }
-      ],
-      "2": [
-        {
-          "time": "14:24",
-          "duration": 1,
-          "meta": {
-            "days": []
-          }
-        }
-      ],
-      "3": []
-    }
+    "id": "1b5b2d5f-6c72-40fb-b50e-7c78e4bc5bc6",
+    "mac": "24:d7:eb:ef:18:98",
+    "name": "sensor1898",
+    "node_type": "sensor_node",
+    "pumps": 0,
+    "pump_crop_map": {},
+    "pump_mode": {},
+    "auto_type": {},
+    "pump_schedule": {}
   },
   {
-    "id": "10c5ff9a-ece9-4aea-aa0d-60614e448bfe",
-    "mac": "B0:A7:32:DB:9D:E8",
-    "name": "ESP Node",
+    "id": "c72325ec-87ff-4a51-b58c-cd800e2dd9c6",
+    "mac": "48:55:19:e4:b2:ce",
+    "name": "pumpB2CE",
+    "node_type": "pump_node",
     "pumps": 4,
+    "pump_crop_map": {
+      "0": "eggplant",
+      "2": "pumpkin",
+      "1": "eggplant",
+      "3": "cucumber"
+    },
+    "pump_mode": {},
+    "auto_type": {},
+    "pump_schedule": {}
+  },
+  {
+    "id": "900091a5-06ec-4d73-a604-f0dcd5f5a54f",
+    "mac": "24:d7:eb:ef:14:38",
+    "name": "sensor1438",
+    "node_type": "sensor_node",
+    "pumps": 0,
     "pump_crop_map": {},
     "pump_mode": {},
     "auto_type": {},

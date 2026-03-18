@@ -1,7 +1,6 @@
 import threading
 import time
 from datetime import datetime, timedelta
-from PyQt5.QtCore import QTimer
 
 
 class AutoTimerService(threading.Thread):
@@ -42,17 +41,22 @@ class AutoTimerService(threading.Thread):
             print(f"[AutoTimer] check node={node_id}")
 
             for idx, schedules in node.pump_schedule.items():
+                mode = node.pump_mode.get(idx, "AUTO")
+                auto_type = node.auto_type.get(idx, "SCHEDULE")
+                if auto_type == "RECOMMEND":
+                    auto_type = "SCHEDULE"
+
                 print(
                     f"  ├─ pump {idx+1} "
-                    f"mode={node.pump_mode.get(idx)} "
-                    f"type={node.auto_type.get(idx)}"
+                    f"mode={mode} "
+                    f"type={auto_type}"
                 )
 
-                if node.pump_mode.get(idx) != "AUTO":
+                if mode != "AUTO":
                     print("  │  skip: not AUTO")
                     continue
 
-                if node.auto_type.get(idx) != "TIMER":
+                if auto_type != "TIMER":
                     print("  │  skip: not TIMER")
                     continue
 
@@ -106,6 +110,10 @@ class AutoTimerService(threading.Thread):
 
         node.auto_running[idx] = {"until": until}
         node.next_schedule[idx] = (sch.time, sch.duration)
+        node.auto_reason = getattr(node, "auto_reason", {})
+        node.auto_reason[idx] = (
+            f"timer-start({sch.time}/{sch.duration}m)"
+        )
 
         print(
             f"[AutoTimer] ▶ START "
@@ -120,6 +128,11 @@ class AutoTimerService(threading.Thread):
             f"[AutoTimer] ■ STOP "
             f"node={node.id} pump={idx+1}"
         )
-        self.bus.send_manual(node, idx, "OFF")
+        node.auto_reason = getattr(node, "auto_reason", {})
+        prev = node.auto_reason.get(idx, "")
+        tail = "timer-stop(timeout)"
+        node.auto_reason[idx] = f"{prev}, {tail}" if prev else tail
+
+        self.bus.send_manual(node.id, idx, "OFF")
         node.auto_running.pop(idx, None)
         node.next_schedule.pop(idx, None)

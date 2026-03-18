@@ -66,7 +66,7 @@ class CropSelectDialog(QDialog):
         super().__init__(parent)
         self.selected_crop = None
         self.registry = crop_registry
-        self.setWindowTitle(self.tr("Select Crop"))
+        self.setWindowTitle(self.tr("Chọn cây trồng"))
         self.setModal(True)
         self.resize(420, 360)
 

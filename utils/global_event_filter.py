@@ -1,5 +1,5 @@
 # utils/global_event_filter.py
-from PyQt5.QtCore import QObject, QEvent, QPoint
+from PyQt5.QtCore import QObject, QEvent
 from PyQt5.QtWidgets import QWidget, QApplication
 from utils.keyboard import AndroidKeyboard
 import sip
@@ -62,8 +62,9 @@ class GlobalKeyboardEventFilter(QObject):
             if not target.isVisible():
                 return
 
-            pos = target.mapToGlobal(QPoint(0, target.height() + 6))
-            self.keyboard.move(pos)
+            reposition = getattr(self.keyboard, "reposition", None)
+            if callable(reposition):
+                reposition()
         except Exception:
             pass
 

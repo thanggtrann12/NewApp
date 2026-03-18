@@ -1,5 +1,7 @@
 import sys
+import os
 import subprocess
+import tempfile
 from PyQt5.QtCore import QObject, pyqtSignal
 
 
@@ -38,14 +40,33 @@ class NetworkService(QObject):
             for line in out.splitlines():
                 if "SSID" in line and ":" in line:
                     ssid = line.split(":")[1].strip()
+            ip = self._get_ip_windows()
             return {
                 "connected": bool(ssid),
-                "ssid": ssid,
+                "ssid": ssid or "-",
+                "ip": ip,
+                "signal": "-",
             }
         except Exception as e:
-            return {"connected": False, "error": str(e)}
+            return {"connected": False, "ssid": "-", "ip": "-", "signal": "-", "error": str(e)}
+
+    def _get_ip_windows(self):
+        try:
+            out = subprocess.check_output(
+                ["ipconfig"],
+                encoding="utf-8",
+                errors="ignore",
+            )
+            for line in out.splitlines():
+                line = line.strip()
+                if line.startswith("IPv4") and ":" in line:
+                    return line.split(":", 1)[1].strip()
+            return "-"
+        except Exception:
+            return "-"
 
     def _connect_windows(self, ssid, password):
+        path = ""
         try:
             profile = f"""
 <?xml version="1.0"?>
@@ -74,9 +95,14 @@ class NetworkService(QObject):
     </MSM>
 </WLANProfile>
 """
-            path = "wifi-profile.xml"
-            with open(path, "w", encoding="utf-8") as f:
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                suffix=".xml",
+                delete=False,
+            ) as f:
                 f.write(profile)
+                path = f.name
 
             subprocess.check_call(
                 ["netsh", "wlan", "add", "profile", f"filename={path}"]
@@ -90,6 +116,12 @@ class NetworkService(QObject):
         except Exception as e:
             print("[WIFI ERROR]", e)
             return False
+        finally:
+            if path:
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
 
     # =========================
     # LINUX / PI IMPLEMENTATION
@@ -102,13 +134,52 @@ class NetworkService(QObject):
             )
             for line in out.splitlines():
                 if line.startswith("yes:"):
+                    ssid = line.split(":", 1)[1]
+                    ip, signal = self._get_ip_signal_linux()
                     return {
                         "connected": True,
-                        "ssid": line.split(":", 1)[1],
+                        "ssid": ssid,
+                        "ip": ip,
+                        "signal": signal,
                     }
-            return {"connected": False}
+            ip, signal = self._get_ip_signal_linux()
+            return {
+                "connected": False,
+                "ssid": "-",
+                "ip": ip,
+                "signal": signal,
+            }
         except Exception as e:
-            return {"connected": False, "error": str(e)}
+            return {"connected": False, "ssid": "-", "ip": "-", "signal": "-", "error": str(e)}
+
+    def _get_ip_signal_linux(self):
+        ip = "-"
+        signal = "-"
+        try:
+            out = subprocess.check_output(
+                ["nmcli", "-t", "-f", "IP4.ADDRESS", "dev", "show"],
+                encoding="utf-8",
+                errors="ignore",
+            )
+            for line in out.splitlines():
+                if ":" in line:
+                    ip = line.split(":")[1].strip().split("/")[0]
+                    break
+        except Exception:
+            pass
+        try:
+            out = subprocess.check_output(
+                ["nmcli", "-t", "-f", "SIGNAL", "dev", "wifi"],
+                encoding="utf-8",
+                errors="ignore",
+            )
+            for line in out.splitlines():
+                if line.strip().isdigit():
+                    signal = line.strip() + "%"
+                    break
+        except Exception:
+            pass
+        return ip, signal
 
     def _connect_linux(self, ssid, password):
         try:

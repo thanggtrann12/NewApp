@@ -5,6 +5,14 @@
   "auto_recommend": {
     "enabled": true
   },
+  "debug": {
+    "enabled": true,
+    "auto_timer": true,
+    "auto_decision": true,
+    "bus": true,
+    "serial": true,
+    "weather": true
+  },
   "dev": {
     "log_level": "INFO"
   }

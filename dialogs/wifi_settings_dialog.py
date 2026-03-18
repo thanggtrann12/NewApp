@@ -14,7 +14,7 @@ class WiFiSettingsDialog(QDialog):
         self.net = NetworkService(self)
         self.net.statusChanged.connect(self._update_status)
 
-        self.setWindowTitle("Wi-Fi Settings (Master)")
+        self.setWindowTitle("Cài đặt Wi-Fi (Bộ điều khiển)")
         self.setModal(True)
 
         # ================= ROOT =================
@@ -23,7 +23,7 @@ class WiFiSettingsDialog(QDialog):
         root.setContentsMargins(20, 20, 20, 20)
 
         # ================= STATUS =================
-        self.status_lbl = QLabel("Status: Unknown")
+        self.status_lbl = QLabel("Trạng thái: Chưa xác định")
         self.status_lbl.setAlignment(Qt.AlignLeft)
         root.addWidget(self.status_lbl)
 
@@ -36,7 +36,7 @@ class WiFiSettingsDialog(QDialog):
         root.addWidget(self.ssid_edit)
 
         # ================= PASSWORD =================
-        root.addWidget(QLabel("Password"))
+        root.addWidget(QLabel("Mật khẩu"))
         self.pass_edit = QLineEdit()
         self.pass_edit.setEchoMode(QLineEdit.Password)
         self.pass_edit.setSizePolicy(
@@ -44,7 +44,7 @@ class WiFiSettingsDialog(QDialog):
         )
         root.addWidget(self.pass_edit)
 
-        self.show_pass = QCheckBox("Show password")
+        self.show_pass = QCheckBox("Hiện mật khẩu")
         self.show_pass.toggled.connect(
             lambda v: self.pass_edit.setEchoMode(
                 QLineEdit.Normal if v else QLineEdit.Password
@@ -61,8 +61,8 @@ class WiFiSettingsDialog(QDialog):
         btns = QHBoxLayout()
         btns.addStretch(1)
 
-        cancel = QPushButton("Cancel")
-        apply = QPushButton("Apply")
+        cancel = QPushButton("Hủy")
+        apply = QPushButton("Áp dụng")
 
         cancel.clicked.connect(self.reject)
         apply.clicked.connect(self._apply)
@@ -80,12 +80,12 @@ class WiFiSettingsDialog(QDialog):
     def _update_status(self, status: dict):
         if status.get("connected"):
             self.status_lbl.setText(
-                f"Status: Connected ({status.get('ssid')})"
+                f"Trạng thái: Đã kết nối ({status.get('ssid')})"
             )
             self.status_lbl.setStyleSheet("color:#4CAF50;")
             self.ssid_edit.setText(status.get("ssid", ""))
         else:
-            self.status_lbl.setText("Status: Disconnected")
+            self.status_lbl.setText("Trạng thái: Mất kết nối")
             self.status_lbl.setStyleSheet("color:#E57373;")
 
     def _apply(self):
@@ -93,10 +93,10 @@ class WiFiSettingsDialog(QDialog):
         pwd = self.pass_edit.text()
 
         if not ssid:
-            QMessageBox.warning(self, "Wi-Fi", "SSID is required")
+            QMessageBox.warning(self, "Wi-Fi", "Vui lòng nhập SSID")
             return
 
-        self.status_lbl.setText("Applying…")
+        self.status_lbl.setText("Đang áp dụng…")
         self.status_lbl.setStyleSheet("color:#FFB300;")
 
         ok = self.net.connect_wifi(ssid, pwd)
@@ -104,5 +104,5 @@ class WiFiSettingsDialog(QDialog):
             QMessageBox.critical(
                 self,
                 "Wi-Fi",
-                "Failed to connect. Check credentials."
+                "Kết nối thất bại. Vui lòng kiểm tra thông tin đăng nhập."
             )
